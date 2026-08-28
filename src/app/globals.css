@@ -1,0 +1,42 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================================
+   Variables del sistema de diseño
+   ======================================================== */
+:root {
+  --background: #f9fafb;
+  --foreground: #111827;
+}
+
+/* ========================================================
+   Estilos base globales
+   ======================================================== */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tap highlight transparente en móviles */
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Safe area para iOS BottomNav */
+@layer utilities {
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
