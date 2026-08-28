@@ -1,5 +1,4 @@
-﻿// src/components/casasgaby/BottomNav.tsx
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -15,6 +14,12 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname()
+
+  // Ocultar la barra de navegación global en la vista de detalles de propiedad
+  // ya que esa vista tiene su propia barra fija de "Reservar"
+  if (pathname.includes('/propiedad/')) {
+    return null
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 safe-area-pb">
