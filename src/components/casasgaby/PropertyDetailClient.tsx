@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@
 import { formatPrice, calcularNoches, cn } from '@/lib/utils'
 import { ADMIN_WHATSAPP } from '@/types/casasgaby'
 import type { Propiedad } from '@/types/casasgaby'
+import { calculateStayTotal, StayTotal } from '@/lib/pricing'
 
 const AMENIDAD_ICONS: Record<string, string> = {
   'alberca': '🏊', 'wifi': '📶', 'aire acondicionado': '❄️', 'cocina': '🍳', 
@@ -24,7 +25,6 @@ function getAmenidadIcon(amenidad: string): string {
   return key ? AMENIDAD_ICONS[key] : '✨'
 }
 
-// Fechas bloqueadas simuladas para demostración
 const FECHAS_BLOQUEADAS = [
   { inicio: '2026-09-05', fin: '2026-09-10' }
 ]
@@ -36,7 +36,6 @@ function isFechasSolapadas(entrada: string, salida: string) {
   for (const bloque of FECHAS_BLOQUEADAS) {
     const blockStart = new Date(bloque.inicio).getTime()
     const blockEnd = new Date(bloque.fin).getTime()
-    // Si alguna fecha se cruza
     if (checkIn <= blockEnd && checkOut >= blockStart) {
       return true
     }
@@ -56,8 +55,7 @@ export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClient
   const [fechaEntrada, setFechaEntrada] = useState<string>('')
   const [fechaSalida, setFechaSalida] = useState<string>('')
   const [huespedes, setHuespedes] = useState<number>(2)
-  const [noches, setNoches] = useState<number>(0)
-  const [total, setTotal] = useState<number>(0)
+  const [cotizacion, setCotizacion] = useState<StayTotal | null>(null)
   const [errorFechas, setErrorFechas] = useState<string>('')
   
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -69,31 +67,32 @@ export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClient
     if (fechaEntrada && fechaSalida) {
       if (new Date(fechaSalida) <= new Date(fechaEntrada)) {
         setErrorFechas('La fecha de salida debe ser posterior a la llegada.')
-        setNoches(0)
-        setTotal(0)
+        setCotizacion(null)
         return
       }
 
       if (isFechasSolapadas(fechaEntrada, fechaSalida)) {
-        setErrorFechas('Las fechas seleccionadas no están disponibles (Ej. 5 al 10 sep 2026).')
-        setNoches(0)
-        setTotal(0)
+        setErrorFechas('Lo sentimos, las fechas seleccionadas no están disponibles (Ej. 5 al 10 sep 2026).')
+        setCotizacion(null)
         return
       }
 
-      const n = calcularNoches(fechaEntrada, fechaSalida)
-      if (n > 0) {
-        setNoches(n)
-        setTotal(n * propiedad.precio_por_noche)
+      const noches = calcularNoches(fechaEntrada, fechaSalida)
+      if (noches > 0) {
+        const resultado = calculateStayTotal(
+          noches, 
+          propiedad.precio_por_noche, 
+          propiedad.precio_por_semana, 
+          propiedad.precio_por_mes
+        )
+        setCotizacion(resultado)
       } else {
-        setNoches(0)
-        setTotal(0)
+        setCotizacion(null)
       }
     } else {
-      setNoches(0)
-      setTotal(0)
+      setCotizacion(null)
     }
-  }, [fechaEntrada, fechaSalida, propiedad.precio_por_noche])
+  }, [fechaEntrada, fechaSalida, propiedad])
 
   const handleReservaClick = () => {
     if (!fechaEntrada || !fechaSalida) {
@@ -104,7 +103,7 @@ export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClient
       alert("Corrige las fechas seleccionadas.")
       return
     }
-    if (noches <= 0) {
+    if (!cotizacion || cotizacion.nights <= 0) {
       alert("La fecha de salida debe ser posterior a la de entrada.")
       return
     }
@@ -117,6 +116,7 @@ export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClient
 
   const handleWhatsAppSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!cotizacion) return
     setIsSubmitting(true)
 
     if (!isDemo) {
@@ -125,8 +125,7 @@ export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClient
        await new Promise(r => setTimeout(r, 800))
     }
 
-    const anticipo = total * 0.50
-    const mensaje = `¡Hola! Me interesa reservar *${propiedad.titulo}* del *${fechaEntrada}* al *${fechaSalida}* (${noches} noches) para ${huespedes} personas.\n\n💰 *Cotización estimada:*\nTotal: ${formatPrice(total)}\nAnticipo sugerido (50%): ${formatPrice(anticipo)}\n\nMi nombre es ${formData.nombre}. ¿Está disponible la casa para estas fechas?`
+    const mensaje = `¡Hola! Me interesa reservar *${propiedad.titulo}* del *${fechaEntrada}* al *${fechaSalida}* (${cotizacion.nights} noches) para ${huespedes} personas.\n\n💰 *Cotización estimada:*\nDesglose: ${cotizacion.breakdown}\nTotal: ${formatPrice(cotizacion.total)}\nAnticipo sugerido (50%): ${formatPrice(cotizacion.anticipo)}\n\nMi nombre es ${formData.nombre}. ¿Está disponible la casa para estas fechas?`
 
     const url = `https://wa.me/${ADMIN_WHATSAPP}?text=${encodeURIComponent(mensaje)}`
     
@@ -173,6 +172,26 @@ export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClient
               <span>Hasta {propiedad.capacidad_personas} huéspedes</span>
             </div>
           </div>
+        </div>
+
+        {/* Tarifas configuradas */}
+        <div className="bg-teal-50 rounded-xl p-3 border border-teal-100 flex flex-col sm:flex-row gap-2 sm:gap-4 text-sm text-teal-900">
+          <div className="flex items-center gap-1">
+            <span className="font-semibold">Noche:</span>
+            <span>{formatPrice(propiedad.precio_por_noche)}</span>
+          </div>
+          {propiedad.precio_por_semana && (
+            <div className="flex items-center gap-1">
+              <span className="font-semibold">Semana:</span>
+              <span>{formatPrice(propiedad.precio_por_semana)}</span>
+            </div>
+          )}
+          {propiedad.precio_por_mes && (
+            <div className="flex items-center gap-1">
+              <span className="font-semibold">Mes:</span>
+              <span>{formatPrice(propiedad.precio_por_mes)}</span>
+            </div>
+          )}
         </div>
 
         <div>
@@ -268,18 +287,18 @@ export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClient
             </div>
           </div>
 
-          {noches > 0 && !errorFechas && (
+          {cotizacion && !errorFechas && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex justify-between text-gray-600 text-sm mb-2">
-                <span>{formatPrice(propiedad.precio_por_noche)} × {noches} noches</span>
-                <span>{formatPrice(total)}</span>
+                <span>{cotizacion.breakdown}</span>
+                <span>{formatPrice(cotizacion.total)}</span>
               </div>
               <div className="flex justify-between font-bold text-gray-900 text-lg">
                 <span>Total estimado</span>
-                <span>{formatPrice(total)}</span>
+                <span>{formatPrice(cotizacion.total)}</span>
               </div>
               <p className="text-xs text-teal-700 mt-1 font-medium bg-teal-50 inline-block px-2 py-1 rounded-md">
-                Anticipo para reservar: {formatPrice(total * 0.50)} (50%)
+                Anticipo para reservar: {formatPrice(cotizacion.anticipo)} (50%)
               </p>
             </div>
           )}
@@ -289,7 +308,7 @@ export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClient
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] flex items-center justify-between z-40 max-w-2xl mx-auto shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)]">
         <div className="flex flex-col">
           <span className="font-bold text-lg text-gray-900 leading-none">{formatPrice(propiedad.precio_por_noche)}</span>
-          <span className="text-xs text-gray-500 mt-1">/ noche</span>
+          <span className="text-xs text-gray-500 mt-1">/ noche base</span>
         </div>
         <Button 
           onClick={handleReservaClick} 
