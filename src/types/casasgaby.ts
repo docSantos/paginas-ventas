@@ -4,14 +4,20 @@ import type { Database } from './database'
 export type Propiedad = Database['public']['Tables']['propiedades']['Row'] & {
   precio_por_semana?: number | null
   precio_por_mes?: number | null
+  amenidades_compartidas?: string[] | null
+  ubicacion_maps_url?: string | null
 }
 export type PropiedadInsert = Database['public']['Tables']['propiedades']['Insert'] & {
   precio_por_semana?: number | null
   precio_por_mes?: number | null
+  amenidades_compartidas?: string[] | null
+  ubicacion_maps_url?: string | null
 }
 export type PropiedadUpdate = Database['public']['Tables']['propiedades']['Update'] & {
   precio_por_semana?: number | null
   precio_por_mes?: number | null
+  amenidades_compartidas?: string[] | null
+  ubicacion_maps_url?: string | null
 }
 
 export type Solicitud = Database['public']['Tables']['solicitudes']['Row']

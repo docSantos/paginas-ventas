@@ -203,15 +203,35 @@ export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClient
 
         <div>
           <h2 className="font-semibold text-lg mb-3 text-gray-900">Lo que ofrece este lugar</h2>
-          <div className="grid grid-cols-2 gap-y-3 gap-x-2">
-            {propiedad.amenidades.map((amenidad) => (
-              <div key={amenidad} className="flex items-center gap-2 text-sm text-gray-700">
-                <span className="text-lg w-6 text-center">{getAmenidadIcon(amenidad)}</span>
-                <span className="truncate">{amenidad}</span>
+          
+          <div className="space-y-6">
+            <div>
+              <h3 className="font-medium text-gray-800 mb-3 text-sm">En la casa</h3>
+              <div className="grid grid-cols-2 gap-y-3 gap-x-2">
+                {propiedad.amenidades.map((amenidad) => (
+                  <div key={amenidad} className="flex items-center gap-2 text-sm text-gray-700">
+                    <span className="text-lg w-6 text-center">{getAmenidadIcon(amenidad)}</span>
+                    <span className="truncate">{amenidad}</span>
+                  </div>
+                ))}
+                {propiedad.amenidades.length === 0 && (
+                  <p className="text-sm text-gray-500">No hay amenidades privadas listadas.</p>
+                )}
               </div>
-            ))}
-            {propiedad.amenidades.length === 0 && (
-              <p className="text-sm text-gray-500">No hay amenidades listadas.</p>
+            </div>
+
+            {propiedad.amenidades_compartidas && propiedad.amenidades_compartidas.length > 0 && (
+              <div>
+                <h3 className="font-medium text-gray-800 mb-3 text-sm">Áreas compartidas (Fraccionamiento)</h3>
+                <div className="grid grid-cols-2 gap-y-3 gap-x-2">
+                  {propiedad.amenidades_compartidas.map((amenidad) => (
+                    <div key={`comp-${amenidad}`} className="flex items-center gap-2 text-sm text-gray-700">
+                      <span className="text-lg w-6 text-center">{getAmenidadIcon(amenidad)}</span>
+                      <span className="truncate">{amenidad}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -221,26 +241,21 @@ export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClient
             <MapPin className="w-5 h-5 text-teal-600" />
             Ubicación
           </h2>
-          <a 
-            href="https://maps.app.goo.gl/ZQLDjaYdrezsHpFL8" 
-            target="_blank" 
-            rel="noreferrer"
-            className="text-sm text-teal-600 hover:underline mb-3 block flex items-center gap-1"
-          >
-            Quinta Maretta, Puerto Morelos, Q.R. (Ver en Google Maps)
-          </a>
-          <div className="w-full h-48 bg-gray-100 rounded-2xl overflow-hidden border border-gray-200">
-            <iframe 
-              src="https://www.google.com/maps?q=Quinta+Maretta,+Puerto+Morelos,+Quintana+Roo&output=embed" 
-              width="100%" 
-              height="100%" 
-              style={{ border: 0 }} 
-              allowFullScreen={false} 
-              loading="lazy" 
-              referrerPolicy="no-referrer-when-downgrade"
-              title="Mapa de ubicación"
-            ></iframe>
-          </div>
+          {propiedad.ubicacion_maps_url ? (
+            <a 
+              href={propiedad.ubicacion_maps_url} 
+              target="_blank" 
+              rel="noreferrer"
+              className="text-sm text-teal-600 hover:underline mb-3 block flex items-center gap-1"
+            >
+              Abrir ubicación en Google Maps
+            </a>
+          ) : (
+            <p className="text-sm text-gray-500 mb-3">La ubicación específica se comparte al reservar.</p>
+          )}
+          
+          {/* Opcional: Podrías usar un mapa incrustado genérico basado en la URL, pero por ahora mantendremos 
+              el iframe genérico o lo ocultaremos si prefieres solo el enlace. */}
         </div>
 
         <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-sm">
