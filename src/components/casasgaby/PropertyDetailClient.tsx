@@ -1,114 +1,105 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import Image from 'next/image'
+import { ArrowLeft, Users, CheckCircle2, MessageCircle, AlertCircle, Share2, BedDouble, Send, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, MapPin, Users, BedDouble, Info, Check, Send, MessageCircle, AlertCircle } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog'
-import { formatPrice, calcularNoches, cn } from '@/lib/utils'
-import { ADMIN_WHATSAPP } from '@/types/casasgaby'
-import type { Propiedad } from '@/types/casasgaby'
-import { calculateStayTotal, StayTotal } from '@/lib/pricing'
-
-const AMENIDAD_ICONS: Record<string, string> = {
-  'alberca': '🏊', 'wifi': '📶', 'aire acondicionado': '❄️', 'cocina': '🍳', 
-  'estacionamiento': '🚗', 'bbq': '🔥', 'asador': '🔥', 'jacuzzi': '🛁', 
-  'chimenea': '🪵', 'terraza': '🌿', 'smart tv': '📺', 'playa': '🏖️'
-}
-
-function getAmenidadIcon(amenidad: string): string {
-  const key = Object.keys(AMENIDAD_ICONS).find(k => amenidad.toLowerCase().includes(k))
-  return key ? AMENIDAD_ICONS[key] : '✨'
-}
-
-const FECHAS_BLOQUEADAS = [
-  { inicio: '2026-09-05', fin: '2026-09-10' }
-]
-
-function isFechasSolapadas(entrada: string, salida: string) {
-  const checkIn = new Date(entrada).getTime()
-  const checkOut = new Date(salida).getTime()
-
-  for (const bloque of FECHAS_BLOQUEADAS) {
-    const blockStart = new Date(bloque.inicio).getTime()
-    const blockEnd = new Date(bloque.fin).getTime()
-    if (checkIn <= blockEnd && checkOut >= blockStart) {
-      return true
-    }
-  }
-  return false
-}
+import { calculateStayTotal } from '@/lib/pricing'
+import { formatPrice } from '@/lib/utils'
+import type { Propiedad, Reserva } from '@/types/casasgaby'
 
 interface PropertyDetailClientProps {
   propiedad: Propiedad
-  isDemo: boolean
+  isDemo?: boolean
+  reservas?: Pick<Reserva, 'fecha_entrada' | 'fecha_salida'>[]
 }
 
-export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClientProps) {
+const AMENIDAD_ICONS: Record<string, string> = {
+  'alberca': '🏊',
+  'wifi': '📶',
+  'cocina': '🍳',
+  'estacionamiento': '🚗',
+  'bbq': '🍖',
+  'asador': '🍖',
+  'jacuzzi': '🛁',
+  'chimenea': '🔥',
+  'terraza': '🌅',
+  'smart tv': '📺',
+  'aire acondicionado': '❄️',
+  'playa': '🏖️'
+}
+
+function getAmenidadIcon(amenidad: string): string {
+  const key = Object.keys(AMENIDAD_ICONS).find(k =>
+    amenidad.toLowerCase().includes(k)
+  )
+  return key ? AMENIDAD_ICONS[key] : '✨'
+}
+
+export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [] }: PropertyDetailClientProps) {
   const router = useRouter()
-  const fotoUrl = propiedad.fotos?.[0] ?? null
-  
-  const [fechaEntrada, setFechaEntrada] = useState<string>('')
-  const [fechaSalida, setFechaSalida] = useState<string>('')
-  const [huespedes, setHuespedes] = useState<number>(2)
-  const [cotizacion, setCotizacion] = useState<StayTotal | null>(null)
-  const [errorFechas, setErrorFechas] = useState<string>('')
+  const [fechaEntrada, setFechaEntrada] = useState('')
+  const [fechaSalida, setFechaSalida] = useState('')
+  const [huespedes, setHuespedes] = useState(1)
   
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState({ nombre: '', telefono: '', correo: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorFechas, setErrorFechas] = useState('')
 
-  useEffect(() => {
+  const cotizacion = useMemo(() => {
     setErrorFechas('')
-    if (fechaEntrada && fechaSalida) {
-      if (new Date(fechaSalida) <= new Date(fechaEntrada)) {
-        setErrorFechas('La fecha de salida debe ser posterior a la llegada.')
-        setCotizacion(null)
-        return
-      }
-
-      if (isFechasSolapadas(fechaEntrada, fechaSalida)) {
-        setErrorFechas('Lo sentimos, las fechas seleccionadas no están disponibles (Ej. 5 al 10 sep 2026).')
-        setCotizacion(null)
-        return
-      }
-
-      const noches = calcularNoches(fechaEntrada, fechaSalida)
-      if (noches > 0) {
-        const resultado = calculateStayTotal(
-          noches, 
-          propiedad.precio_por_noche, 
-          propiedad.precio_por_semana, 
-          propiedad.precio_por_mes
-        )
-        setCotizacion(resultado)
-      } else {
-        setCotizacion(null)
-      }
-    } else {
-      setCotizacion(null)
+    if (!fechaEntrada || !fechaSalida) return null
+    
+    const start = new Date(fechaEntrada)
+    const end = new Date(fechaSalida)
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return null
+    
+    const diffTime = end.getTime() - start.getTime()
+    const noches = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (noches <= 0) {
+      setErrorFechas('La fecha de salida debe ser posterior a la de llegada')
+      return null
     }
-  }, [fechaEntrada, fechaSalida, propiedad])
+
+    // Validación de fechas ocupadas
+    const isOccupied = reservas.some(r => {
+      const rStart = new Date(r.fecha_entrada).getTime()
+      const rEnd = new Date(r.fecha_salida).getTime()
+      const s = start.getTime()
+      const e = end.getTime()
+      // Hay traslape si el inicio deseado es antes del fin de la reserva Y el fin deseado es después del inicio de la reserva
+      return (s < rEnd && e > rStart)
+    })
+
+    if (isOccupied) {
+      setErrorFechas('Las fechas seleccionadas no están disponibles')
+      return null
+    }
+
+    const { total, breakdown, anticipo } = calculateStayTotal(
+      noches, 
+      propiedad.precio_por_noche, 
+      propiedad.precio_por_semana || undefined, 
+      propiedad.precio_por_mes || undefined
+    )
+
+    return { noches, total, breakdown, anticipo }
+  }, [fechaEntrada, fechaSalida, propiedad.precio_por_noche, propiedad.precio_por_semana, propiedad.precio_por_mes, reservas])
 
   const handleReservaClick = () => {
     if (!fechaEntrada || !fechaSalida) {
-      alert("Por favor selecciona las fechas de tu estadía antes de reservar.")
+      alert("Por favor selecciona tus fechas de llegada y salida")
       return
     }
-    if (errorFechas) {
-      alert("Corrige las fechas seleccionadas.")
-      return
-    }
-    if (!cotizacion || cotizacion.nights <= 0) {
-      alert("La fecha de salida debe ser posterior a la de entrada.")
-      return
-    }
-    if (huespedes > propiedad.capacidad_personas) {
-      alert(`La capacidad máxima es de ${propiedad.capacidad_personas} personas.`)
+    if (errorFechas || !cotizacion) {
+      alert("Por favor corrige las fechas antes de continuar")
       return
     }
     setIsModalOpen(true)
@@ -119,83 +110,140 @@ export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClient
     if (!cotizacion) return
     setIsSubmitting(true)
 
-    if (!isDemo) {
-       // TODO: Insert into Supabase table 'solicitudes'
-    } else {
-       await new Promise(r => setTimeout(r, 800))
+    try {
+      // 1. Guardar solicitud en la API
+      await fetch('/api/solicitudes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propiedad_id: propiedad.id,
+          titulo_propiedad: propiedad.titulo,
+          nombre_cliente: formData.nombre,
+          telefono: formData.telefono,
+          email: formData.correo,
+          fecha_entrada: fechaEntrada,
+          fecha_salida: fechaSalida,
+          num_huespedes: huespedes,
+          noches: cotizacion.noches,
+          costo_total: cotizacion.total,
+          monto_apartado: cotizacion.anticipo
+        })
+      })
+
+      // 2. Redirigir a WhatsApp
+      // Usa la variable de entorno, si no existe usa el número por defecto 529981424300
+      const adminPhone = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "529981424300"
+      const text = `Hola, me interesa revisar disponibilidad para:
+*${propiedad.titulo}*
+
+*Mis datos:*
+Nombre: ${formData.nombre}
+Teléfono: ${formData.telefono}
+
+*Estadía:*
+Llegada: ${fechaEntrada}
+Salida: ${fechaSalida}
+Huéspedes: ${huespedes} (${cotizacion.breakdown})
+
+*Cotización sugerida:*
+Total: ${formatPrice(cotizacion.total)}
+Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
+
+¿Tienen disponibilidad?`
+      
+      const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(text)}`
+      window.open(whatsappUrl, '_blank')
+      
+      setIsModalOpen(false)
+    } catch (err) {
+      alert('Error al procesar la solicitud')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    const mensaje = `¡Hola! Me interesa reservar *${propiedad.titulo}* del *${fechaEntrada}* al *${fechaSalida}* (${cotizacion.nights} noches) para ${huespedes} personas.\n\n💰 *Cotización estimada:*\nDesglose: ${cotizacion.breakdown}\nTotal: ${formatPrice(cotizacion.total)}\nAnticipo sugerido (50%): ${formatPrice(cotizacion.anticipo)}\n\nMi nombre es ${formData.nombre}. ¿Está disponible la casa para estas fechas?`
-
-    const url = `https://wa.me/${ADMIN_WHATSAPP}?text=${encodeURIComponent(mensaje)}`
-    
-    setIsSubmitting(false)
-    setIsModalOpen(false)
-    window.open(url, '_blank')
   }
 
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: propiedad.titulo,
+        text: `Mira esta increíble casa vacacional: ${propiedad.titulo}`,
+        url: window.location.href,
+      }).catch(console.error)
+    } else {
+      navigator.clipboard.writeText(window.location.href)
+      alert("Enlace copiado al portapapeles")
+    }
+  }
+
+  const fotoPrincipal = propiedad.fotos?.[0]
+  const fotosExtra = propiedad.fotos?.slice(1, 3) || []
+
   return (
-    <div className="bg-white min-h-screen pb-28">
-      <div className="absolute top-4 left-4 z-10">
+    <div className="bg-white min-h-screen">
+      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <button 
-          onClick={() => router.back()}
-          className="bg-white/90 backdrop-blur p-2 rounded-full shadow-sm text-gray-700 hover:bg-white transition-colors"
+          onClick={() => router.back()} 
+          className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5 text-gray-700" />
+        </button>
+        <button 
+          onClick={handleShare}
+          className="p-2 -mr-2 rounded-full hover:bg-gray-100 transition-colors"
+        >
+          <Share2 className="w-5 h-5 text-gray-700" />
         </button>
       </div>
 
-      <div className="relative h-[35vh] min-h-[250px] bg-teal-100 w-full overflow-hidden">
-        {fotoUrl ? (
-          <Image
-            src={fotoUrl}
-            alt={propiedad.titulo}
-            fill
-            className="object-cover"
-            priority
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-teal-400">
-            <BedDouble className="w-16 h-16" />
+      {isDemo && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 text-center">
+          <strong>Modo demo:</strong> Mostrando datos de prueba.
+        </div>
+      )}
+
+      {/* Galería de fotos (simplificada) */}
+      <div className="px-4 py-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100">
+          {fotoPrincipal ? (
+             <Image src={fotoPrincipal} alt="Foto Principal" fill className="object-cover" priority sizes="(max-width: 768px) 100vw, 50vw" />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+              <BedDouble className="w-12 h-12 mb-2" />
+              <span className="text-sm font-medium">Sin foto principal</span>
+            </div>
+          )}
+        </div>
+        {fotosExtra.length > 0 && (
+          <div className="hidden md:grid grid-rows-2 gap-2">
+            {fotosExtra.map((f, i) => (
+              <div key={i} className="relative w-full h-full rounded-2xl overflow-hidden bg-gray-100">
+                <Image src={f} alt={`Foto ${i+2}`} fill className="object-cover" sizes="50vw" />
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      <div className="px-5 py-6 space-y-8">
+      <div className="px-4 py-2 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+          <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
             {propiedad.titulo}
           </h1>
-          <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
+          <div className="flex items-center text-sm text-gray-600 gap-4">
             <div className="flex items-center gap-1.5">
               <Users className="w-4 h-4 text-teal-600" />
-              <span>Hasta {propiedad.capacidad_personas} huéspedes</span>
+              <span>{propiedad.capacidad_personas} huéspedes máx</span>
             </div>
+            {propiedad.activa && (
+              <div className="flex items-center gap-1.5 text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full font-medium text-xs">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Disponible
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Tarifas configuradas */}
-        <div className="bg-teal-50 rounded-xl p-3 border border-teal-100 flex flex-col sm:flex-row gap-2 sm:gap-4 text-sm text-teal-900">
-          <div className="flex items-center gap-1">
-            <span className="font-semibold">Noche:</span>
-            <span>{formatPrice(propiedad.precio_por_noche)}</span>
-          </div>
-          {propiedad.precio_por_semana && (
-            <div className="flex items-center gap-1">
-              <span className="font-semibold">Semana:</span>
-              <span>{formatPrice(propiedad.precio_por_semana)}</span>
-            </div>
-          )}
-          {propiedad.precio_por_mes && (
-            <div className="flex items-center gap-1">
-              <span className="font-semibold">Mes:</span>
-              <span>{formatPrice(propiedad.precio_por_mes)}</span>
-            </div>
-          )}
-        </div>
-
-        <div>
-          <h2 className="font-semibold text-lg mb-2 text-gray-900">Acerca de esta casa</h2>
+        <div className="pt-4 border-t border-gray-100">
           <p className="text-gray-600 text-sm leading-relaxed">
             {propiedad.descripcion || "Sin descripción detallada disponible."}
           </p>
@@ -253,9 +301,6 @@ export function PropertyDetailClient({ propiedad, isDemo }: PropertyDetailClient
           ) : (
             <p className="text-sm text-gray-500 mb-3">La ubicación específica se comparte al reservar.</p>
           )}
-          
-          {/* Opcional: Podrías usar un mapa incrustado genérico basado en la URL, pero por ahora mantendremos 
-              el iframe genérico o lo ocultaremos si prefieres solo el enlace. */}
         </div>
 
         <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-sm">

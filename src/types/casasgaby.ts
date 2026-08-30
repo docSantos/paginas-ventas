@@ -20,8 +20,21 @@ export type PropiedadUpdate = Database['public']['Tables']['propiedades']['Updat
   ubicacion_maps_url?: string | null
 }
 
-export type Solicitud = Database['public']['Tables']['solicitudes']['Row']
-export type SolicitudInsert = Database['public']['Tables']['solicitudes']['Insert']
+export type Solicitud = Database['public']['Tables']['solicitudes']['Row'] & {
+  noches?: number | null
+  costo_total?: number | null
+  monto_apartado?: number | null
+}
+export type SolicitudInsert = Database['public']['Tables']['solicitudes']['Insert'] & {
+  noches?: number | null
+  costo_total?: number | null
+  monto_apartado?: number | null
+}
+export type SolicitudUpdate = Database['public']['Tables']['solicitudes']['Update'] & {
+  noches?: number | null
+  costo_total?: number | null
+  monto_apartado?: number | null
+}
 
 export type Reserva = Database['public']['Tables']['reservas']['Row']
 export type ReservaInsert = Database['public']['Tables']['reservas']['Insert']
