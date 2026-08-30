@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -51,7 +51,7 @@ export function PropertyListClient({ propiedades }: { propiedades: Propiedad[] }
             </div>
           </div>
           <div className="p-4 flex-1">
-            <h3 className="font-bold text-gray-900 truncate">{p.titulo}</h3>
+            <h3 className="font-bold text-gray-900 leading-tight mb-1 line-clamp-2">{p.titulo}</h3>
             <p className="text-sm text-gray-500 mb-4">{formatPrice(p.precio_por_noche)} / noche</p>
             
             <div className="flex items-center gap-2 mt-auto">

@@ -74,7 +74,14 @@ export async function saveProperty(data: any, id?: string) {
   revalidatePath('/casasgaby')
 }
 
-export async function aprobarSolicitud(solicitudId: string) {
+export async function aprobarSolicitud(
+  solicitudId: string, 
+  montoAcordado: number, 
+  montoAnticipo: number, 
+  metodo: string, 
+  moneda: string, 
+  tc: number
+) {
   const supabase = await createClient()
   const db = supabase as any
 
@@ -87,7 +94,7 @@ export async function aprobarSolicitud(solicitudId: string) {
   if (errorSol || !solicitud) throw new Error('Solicitud no encontrada')
   if (solicitud.estado !== 'Pendiente') throw new Error('La solicitud ya fue procesada')
 
-  const { error: errorRes } = await db
+  const { data: reserva, error: errorRes } = await db
     .from('reservas')
     .insert({
       propiedad_id: solicitud.propiedad_id,
@@ -97,13 +104,35 @@ export async function aprobarSolicitud(solicitudId: string) {
       fecha_entrada: solicitud.fecha_entrada,
       fecha_salida: solicitud.fecha_salida,
       costo_total: solicitud.costo_total || 0,
-      monto_apartado: solicitud.monto_apartado || 0,
+      monto_total_acordado: montoAcordado,
+      monto_apartado: montoAnticipo, // Maintain compatibility cache
+      porcentaje_comision: 2.50,
+      monto_comision: montoAcordado * 0.025,
+      comision_pagada: 0,
+      estado_comision: 'pendiente',
       num_huespedes: solicitud.num_huespedes || 1,
       notas: solicitud.notas || '',
       estado: 'Activa'
     })
+    .select('id')
+    .single()
 
   if (errorRes) throw new Error('Error al crear la reserva: ' + errorRes.message)
+
+  // Insert payment record if anticipo > 0
+  if (montoAnticipo > 0) {
+    const equivalenteMXN = moneda === 'USD' ? montoAnticipo * tc : montoAnticipo;
+    const { error: pagoErr } = await db.from('pagos_reservas').insert({
+      reserva_id: reserva.id,
+      monto: montoAnticipo,
+      moneda: moneda,
+      metodo_pago: metodo,
+      tipo_cambio: tc,
+      monto_equivalente_mxn: equivalenteMXN,
+      notas: 'Anticipo inicial'
+    })
+    if (pagoErr) throw new Error('Error al registrar pago: ' + pagoErr.message)
+  }
 
   const { error: errorUpd } = await db
     .from('solicitudes')
@@ -114,6 +143,63 @@ export async function aprobarSolicitud(solicitudId: string) {
 
   revalidatePath('/casasgaby/admin/reservas')
   revalidatePath(`/casasgaby/propiedad/${solicitud.propiedad_id}`)
+  return { success: true }
+}
+
+export async function registrarComisionPagada(reservaId: string, montoPagado: number, notas: string = '') {
+  const supabase = await createClient()
+  const db = supabase as any
+
+  // Get current
+  const { data: reserva, error: errFetch } = await db.from('reservas').select('monto_comision, comision_pagada').eq('id', reservaId).single()
+  if (errFetch || !reserva) throw new Error('Reserva no encontrada')
+
+  const nuevoTotal = (Number(reserva.comision_pagada) || 0) + montoPagado
+  const estado = nuevoTotal >= Number(reserva.monto_comision) ? 'liquidada' : 'parcial'
+
+  const { error: errUpd } = await db.from('reservas').update({
+    comision_pagada: nuevoTotal,
+    estado_comision: estado
+  }).eq('id', reservaId)
+
+  if (errUpd) throw new Error('Error al registrar comisión: ' + errUpd.message)
+
+  revalidatePath('/casasgaby/admin/reservas')
+  revalidatePath('/casasgaby/admin/finanzas')
+  return { success: true }
+}
+
+export async function registrarAbono(
+  reservaId: string, 
+  monto: number, 
+  metodo: string, 
+  moneda: string, 
+  tc: number, 
+  notas: string = ''
+) {
+  const supabase = await createClient()
+  const db = supabase as any
+
+  const equivalenteMXN = moneda === 'USD' ? monto * tc : monto;
+
+  const { error: pagoErr } = await db.from('pagos_reservas').insert({
+    reserva_id: reservaId,
+    monto: monto,
+    moneda: moneda,
+    metodo_pago: metodo,
+    tipo_cambio: tc,
+    monto_equivalente_mxn: equivalenteMXN,
+    notas: notas
+  })
+  if (pagoErr) throw new Error('Error al registrar abono: ' + pagoErr.message)
+
+  // Update cached total in reservas
+  const { data: pagos } = await db.from('pagos_reservas').select('monto_equivalente_mxn').eq('reserva_id', reservaId)
+  const totalPagado = pagos?.reduce((sum: number, p: any) => sum + Number(p.monto_equivalente_mxn), 0) || 0
+
+  await db.from('reservas').update({ monto_apartado: totalPagado }).eq('id', reservaId)
+
+  revalidatePath('/casasgaby/admin/reservas')
   return { success: true }
 }
 

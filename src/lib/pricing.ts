@@ -22,12 +22,34 @@ export function calculateStayTotal(
   let weeklyNights = 0;
   let dailyNights = 0;
 
-  // Tarifa mensual (cada 30 noches)
-  if (precioMes && remainingNights >= 30) {
-    const months = Math.floor(remainingNights / 30);
-    monthlyNights = months * 30;
+  // Tarifa mensual (adaptativa para meses calendario)
+  // Si la estancia es entre 28 y 31 noches, se considera exactamente 1 mes.
+  // Para estancias más largas, calculamos cuántos bloques "mensuales" (aproximados a 30 días) hay.
+  if (precioMes && remainingNights >= 28) {
+    // Calculamos meses considerando que 28-31 días es 1 mes. 
+    // Usamos Math.round para que 28, 29, 30, 31 se redondeen a 1 mes (30). 
+    // 58-61 se redondean a 2 meses, etc.
+    let months = 1;
+    if (remainingNights >= 32) {
+      months = Math.floor(remainingNights / 30);
+    }
+    
+    // Calculamos cuántas noches "cubre" este pago mensual para restarlas
+    // Si es 1 mes exacto (28-31 noches) y no hay más noches, cubre todo.
+    let coveredNights = months * 30;
+    if (months === 1 && remainingNights >= 28 && remainingNights <= 31) {
+      coveredNights = remainingNights;
+    } else if (remainingNights >= months * 30 && remainingNights <= months * 30 + 1) {
+      // Si son e.g. 61 noches, son 2 meses exactos sin días extra
+      coveredNights = remainingNights;
+    } else if (remainingNights >= months * 30 - 2 && remainingNights < months * 30) {
+      // Si son e.g. 58 noches, son 2 meses exactos
+      coveredNights = remainingNights;
+    }
+
+    monthlyNights = coveredNights;
     total += months * precioMes;
-    remainingNights -= monthlyNights;
+    remainingNights -= coveredNights;
   }
 
   // Tarifa semanal (cada 7 noches)
@@ -61,7 +83,12 @@ export function calculateStayTotal(
 
   // Construir desglose legible
   const breakdownParts = [];
-  if (monthlyNights > 0) breakdownParts.push(`${monthlyNights / 30} mes(es)`);
+  if (monthlyNights > 0) {
+    // Para visualización, estimamos los meses dividiendo entre 30 y redondeando.
+    // 28, 29, 30, 31 noches -> 1 mes.
+    const displayMonths = Math.round(monthlyNights / 30) || 1;
+    breakdownParts.push(`${displayMonths} mes(es)`);
+  }
   if (weeklyNights > 0) breakdownParts.push(`${weeklyNights / 7} semana(s)`);
   if (dailyNights > 0) breakdownParts.push(`${dailyNights} noche(s)`);
 

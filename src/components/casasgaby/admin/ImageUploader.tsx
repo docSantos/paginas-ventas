@@ -1,8 +1,8 @@
-﻿'use client'
+'use client'
 
 import { useState, useCallback } from 'react'
 import { UploadCloud, X, Loader2, GripVertical } from 'lucide-react'
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient } from '@/lib/supabase/client'
 
 interface ImageUploaderProps {
   initialFotos: string[]
@@ -14,14 +14,11 @@ export function ImageUploader({ initialFotos, onChange }: ImageUploaderProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
 
+  const supabase = createClient()
+
   const handleUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return
     setIsUploading(true)
-
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
 
     const uploadedUrls: string[] = []
 

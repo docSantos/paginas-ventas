@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import { calculateStayTotal } from '@/lib/pricing'
-import { formatPrice, formatDateEs } from '@/lib/utils'
+import { COUNTRIES } from '@/lib/countries'
+import { formatPrice, formatDateEs, formatPhone, isPhoneValid } from '@/lib/utils'
 import type { Propiedad, Reserva } from '@/types/casasgaby'
 
 interface PropertyDetailClientProps {
@@ -49,6 +50,7 @@ export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [],
   
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState({ nombre: '', telefono: '', correo: '' })
+  const [lada, setLada] = useState('52')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorFechas, setErrorFechas] = useState('')
 
@@ -120,7 +122,7 @@ export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [],
           propiedad_id: propiedad.id,
           titulo_propiedad: propiedad.titulo,
           nombre_cliente: formData.nombre,
-          telefono: `52${formData.telefono}`,
+          telefono: `${lada}${formData.telefono.replace(/\D/g, '')}`,
           email: formData.correo,
           fecha_entrada: fechaEntrada,
           fecha_salida: fechaSalida,
@@ -138,7 +140,7 @@ export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [],
 
 *Mis datos:*
 Nombre: ${formData.nombre}
-Teléfono: ${formData.telefono}
+Teléfono: +${lada} ${formData.telefono}
 
 *Estadía:*
 Llegada: ${fechaEntrada}
@@ -407,26 +409,43 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
               value={formData.nombre}
               onChange={e => setFormData({...formData, nombre: e.target.value})}
             />
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-gray-700">
-                  Teléfono (WhatsApp)
-                </label>
-                <div className="relative flex items-center w-full">
-                  <div className="absolute left-3 flex items-center gap-1.5 text-gray-500 font-medium select-none pointer-events-none">
-                    <span className="text-lg leading-none">🇲🇽</span>
-                    <span>+52</span>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-gray-700">
+                    Teléfono (WhatsApp)
+                  </label>
+                  <div className="flex w-full">
+                    <select
+                      className="h-11 rounded-l-xl border border-r-0 border-gray-300 bg-gray-50 px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 max-w-[120px]"
+                      value={lada}
+                      onChange={(e) => {
+                        const newLada = e.target.value
+                        setLada(newLada)
+                        setFormData(prev => ({ ...prev, telefono: formatPhone(prev.telefono, newLada) }))
+                      }}
+                    >
+                      {COUNTRIES.map((country, idx) => (
+                        country.code === 'separator' ? (
+                          <option key={`sep-${idx}`} disabled>──────────</option>
+                        ) : (
+                          <option key={`${country.code}-${country.name}`} value={country.code}>
+                            {country.flag} +{country.code} ({country.name})
+                          </option>
+                        )
+                      ))}
+                    </select>
+                    <Input 
+                      type="tel" 
+                      required 
+                      placeholder="1234567890"
+                      className="rounded-l-none pl-3"
+                      value={formData.telefono}
+                      onChange={e => setFormData({...formData, telefono: formatPhone(e.target.value, lada)})}
+                    />
                   </div>
-                  <Input 
-                    type="tel" 
-                    required 
-                    maxLength={10}
-                    placeholder="1234567890"
-                    className="pl-[4.5rem]"
-                    value={formData.telefono}
-                    onChange={e => setFormData({...formData, telefono: e.target.value.replace(/\D/g,'')})}
-                  />
+                  {formData.telefono.length > 0 && !isPhoneValid(formData.telefono, lada) && (
+                    <p className="text-xs text-red-500">Ingresa un número válido ({lada === '52' || lada === '1' ? '10' : '8-15'} dígitos)</p>
+                  )}
                 </div>
-              </div>
             <Input 
               label="Correo electrónico (opcional)" 
               type="email" 
@@ -435,7 +454,12 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
               onChange={e => setFormData({...formData, correo: e.target.value})}
             />
             
-            <Button type="submit" className="w-full mt-2 bg-[#25D366] hover:bg-[#1ebd5c] text-white" isLoading={isSubmitting}>
+            <Button 
+                type="submit" 
+                className="w-full mt-2 bg-[#25D366] hover:bg-[#1ebd5c] text-white" 
+                isLoading={isSubmitting}
+                disabled={!isPhoneValid(formData.telefono, lada)}
+              >
               <Send className="w-4 h-4 mr-2" />
               Enviar solicitud por WhatsApp
             </Button>

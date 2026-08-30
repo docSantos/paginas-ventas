@@ -81,6 +81,7 @@ export default async function PropiedadPage({
           .from('vista_fechas_ocupadas')
           .select('fecha_entrada, fecha_salida')
           .eq('propiedad_id', id)
+          .order('fecha_entrada', { ascending: true })
           
         if (reservas) {
           reservasActivas = reservas

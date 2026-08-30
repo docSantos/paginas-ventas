@@ -1,10 +1,12 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, Trash2, Phone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { COUNTRIES } from '@/lib/countries'
+import { formatPhone, isPhoneValid } from '@/lib/utils'
 
 interface Telefono {
   id: string
@@ -13,10 +15,24 @@ interface Telefono {
   activo: boolean
 }
 
+const getPhoneDisplay = (phone: string) => {
+  const sortedCountries = [...COUNTRIES]
+    .filter(c => c.code !== 'separator')
+    .sort((a, b) => b.code.length - a.code.length)
+  
+  const country = sortedCountries.find(c => phone.startsWith(c.code))
+  
+  if (country) {
+    return `${country.flag} +${country.code} ${phone.slice(country.code.length)}`
+  }
+  return `+${phone}`
+}
+
 export default function AjustesClient() {
   const [telefonos, setTelefonos] = useState<Telefono[]>([])
   const [nuevoNumero, setNuevoNumero] = useState('')
   const [nuevaEtiqueta, setNuevaEtiqueta] = useState('')
+  const [lada, setLada] = useState('52')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -40,8 +56,10 @@ export default function AjustesClient() {
   }, [])
 
   const addNumber = async () => {
-    if (nuevoNumero.length !== 10) return
-    const fullNumber = `52${nuevoNumero}`
+    if (!isPhoneValid(nuevoNumero, lada)) return
+    
+    const cleanNumber = nuevoNumero.replace(/\D/g, '')
+    const fullNumber = `${lada}${cleanNumber}`
     
     // Check if already exists
     if (telefonos.some(t => t.telefono === fullNumber)) return
@@ -112,33 +130,49 @@ export default function AjustesClient() {
           Agrega los números telefónicos a los que quieres que lleguen las solicitudes de reserva. Selecciona uno para activarlo en la página pública.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <Input 
-            placeholder="Etiqueta (ej. Ventas, Soporte)"
-            value={nuevaEtiqueta}
-            onChange={e => setNuevaEtiqueta(e.target.value)}
-            className="w-full sm:max-w-[200px]"
-            maxLength={30}
-          />
-          <div className="relative flex items-center w-full sm:max-w-[240px]">
-            <div className="absolute left-3 flex items-center gap-1.5 text-gray-500 font-medium select-none pointer-events-none">
-              <span className="text-lg leading-none">🇲🇽</span>
-              <span>+52</span>
-            </div>
+          <div className="flex flex-col sm:flex-row gap-3">
             <Input 
-              placeholder="1234567890"
-              className="pl-[4.5rem]"
-              maxLength={10}
-              value={nuevoNumero}
-              onChange={e => setNuevoNumero(e.target.value.replace(/\D/g,''))}
+              placeholder="Etiqueta (ej. Ventas, Recepción)"
+              value={nuevaEtiqueta}
+              onChange={e => setNuevaEtiqueta(e.target.value)}
+              className="w-full sm:max-w-[200px]"
             />
+            <div className="flex w-full sm:max-w-[280px]">
+              <select
+                className="h-11 rounded-l-xl border border-r-0 border-gray-300 bg-gray-50 px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 max-w-[120px]"
+                value={lada}
+                onChange={(e) => {
+                  const newLada = e.target.value
+                  setLada(newLada)
+                  setNuevoNumero(formatPhone(nuevoNumero, newLada))
+                }}
+              >
+                {COUNTRIES.map((country, idx) => (
+                  country.code === 'separator' ? (
+                    <option key={`sep-${idx}`} disabled>──────────</option>
+                  ) : (
+                    <option key={`${country.code}-${country.name}`} value={country.code}>
+                      {country.flag} +{country.code} ({country.name})
+                    </option>
+                  )
+                ))}
+              </select>
+              <Input 
+                placeholder="1234567890"
+                className="rounded-l-none pl-3"
+                value={nuevoNumero}
+                onChange={e => setNuevoNumero(formatPhone(e.target.value, lada))}
+              />
+            </div>
+            <Button onClick={addNumber} disabled={!isPhoneValid(nuevoNumero, lada) || saving} className="shrink-0 w-full sm:w-auto">
+              <Plus className="w-4 h-4 mr-2" /> Agregar
+            </Button>
           </div>
-          <Button onClick={addNumber} disabled={nuevoNumero.length !== 10 || saving} className="shrink-0 w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" /> Agregar
-          </Button>
-        </div>
+          {nuevoNumero.length > 0 && !isPhoneValid(nuevoNumero, lada) && (
+            <p className="text-xs text-red-500 mt-2">Ingresa un número válido ({lada === '52' || lada === '1' ? '10' : '8-15'} dígitos)</p>
+          )}
 
-        <div className="space-y-3">
+        <div className="space-y-3 mt-6">
           {telefonos.length === 0 && (
             <p className="text-sm text-gray-500 text-center py-4 bg-gray-50 rounded-lg">No hay números configurados.</p>
           )}
@@ -155,7 +189,7 @@ export default function AjustesClient() {
                 />
                 <div>
                   <div className="font-medium text-gray-900">
-                    🇲🇽 +52 {tel.telefono.startsWith('52') ? tel.telefono.slice(2) : tel.telefono}
+                    {getPhoneDisplay(tel.telefono)}
                   </div>
                   {tel.etiqueta && <div className="text-xs text-gray-500">{tel.etiqueta}</div>}
                 </div>

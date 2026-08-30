@@ -1,4 +1,4 @@
-﻿// src/components/casasgaby/PropertyCard.tsx
+// src/components/casasgaby/PropertyCard.tsx
 import Link from 'next/link'
 import Image from 'next/image'
 import { Users, BedDouble, Wifi } from 'lucide-react'
@@ -62,7 +62,7 @@ export function PropertyCard({ propiedad }: PropertyCardProps) {
 
       <CardContent className="pt-3">
         {/* Título */}
-        <h3 className="font-semibold text-gray-900 text-base leading-tight line-clamp-1">
+        <h3 className="font-semibold text-gray-900 text-base leading-tight line-clamp-2">
           {propiedad.titulo}
         </h3>
 

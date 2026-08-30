@@ -207,7 +207,7 @@ export function PropertyForm({ initialData }: { initialData?: Propiedad }) {
         <h3 className="text-lg font-bold text-gray-900 border-b pb-2">Fotos de la Casa</h3>
         <ImageUploader 
           initialFotos={formData.fotos} 
-          onChange={(newFotos) => setFormData({...formData, fotos: newFotos})}
+          onChange={(newFotos) => setFormData(prev => ({...prev, fotos: newFotos}))}
         />
       </div>
 

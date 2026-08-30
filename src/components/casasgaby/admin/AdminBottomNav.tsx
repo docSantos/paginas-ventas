@@ -1,8 +1,8 @@
-﻿'use client'
+'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Settings, LogOut, TrendingUp } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
@@ -13,6 +13,7 @@ export function AdminBottomNav() {
   const navItems = [
     { href: '/casasgaby/admin', label: 'Propiedades', icon: LayoutDashboard },
     { href: '/casasgaby/admin/reservas', label: 'Reservas', icon: CalendarDays },
+    { href: '/casasgaby/admin/finanzas', label: 'Finanzas', icon: TrendingUp },
     { href: '/casasgaby/admin/ajustes', label: 'Ajustes', icon: Settings },
   ]
 

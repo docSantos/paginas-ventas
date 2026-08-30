@@ -1,39 +1,114 @@
 'use client'
 
-import { useState } from 'react'
-import { CheckCircle, XCircle, Clock, ExternalLink, ChevronDown, ChevronUp, DollarSign, Calendar as CalendarIcon, Save } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { CheckCircle, XCircle, Clock, ExternalLink, ChevronDown, ChevronUp, DollarSign, Calendar as CalendarIcon, Save, History } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatPrice, formatDateEs } from '@/lib/utils'
 import { calculateStayTotal } from '@/lib/pricing'
-import { aprobarSolicitud, rechazarSolicitud, actualizarPagosReserva, actualizarFechasReserva, cancelarReserva } from '@/app/casasgaby/admin/actions'
+import { aprobarSolicitud, rechazarSolicitud, registrarAbono, registrarComisionPagada, actualizarFechasReserva, cancelarReserva } from '@/app/casasgaby/admin/actions'
 import type { Solicitud, Reserva } from '@/types/casasgaby'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 
 export function ReservasClient({ solicitudes, reservas }: { solicitudes: Solicitud[], reservas: Reserva[] }) {
   const pendientes = solicitudes.filter(s => s.estado === 'Pendiente')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   
-  // Modals state
-  const [pagoModal, setPagoModal] = useState<{ open: boolean, reserva: any | null }>({ open: false, reserva: null })
-  const [nuevoAbono, setNuevoAbono] = useState('')
+  // Aprobar Modal
+  const [aprobarModal, setAprobarModal] = useState<{ open: boolean, solicitud: any | null }>({ open: false, solicitud: null })
+  const [montoAcordado, setMontoAcordado] = useState('')
+  const [montoAnticipo, setMontoAnticipo] = useState('')
+  const [metodoPago, setMetodoPago] = useState('efectivo_mxn')
+  const [moneda, setMoneda] = useState('MXN')
+  const [tc, setTc] = useState('20.00')
+
+  // Abonos Modal
+  const [abonoModal, setAbonoModal] = useState<{ open: boolean, reserva: any | null }>({ open: false, reserva: null })
+  const [abonoMonto, setAbonoMonto] = useState('')
+  const [abonoMetodo, setAbonoMetodo] = useState('efectivo_mxn')
+  const [abonoMoneda, setAbonoMoneda] = useState('MXN')
+  const [abonoTc, setAbonoTc] = useState('20.00')
   
+  // Fechas Modal
   const [fechasModal, setFechasModal] = useState<{ open: boolean, reserva: any | null }>({ open: false, reserva: null })
   const [fEntrada, setFEntrada] = useState('')
   const [fSalida, setFSalida] = useState('')
-  
-  const toggleExpand = (id: string) => {
-    setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
+
+  // Comisión Modal
+  const [comisionModal, setComisionModal] = useState<{ open: boolean, reserva: any | null }>({ open: false, reserva: null })
+  const [comisionMonto, setComisionMonto] = useState('')
+
+  // Historial de pagos
+  const [pagosHistory, setPagosHistory] = useState<Record<string, any[]>>({})
+  const supabase = createClient()
+
+  useEffect(() => {
+    // Cuando el método cambia a usd, forzar moneda
+    if (metodoPago.includes('usd')) setMoneda('USD')
+    else setMoneda('MXN')
+  }, [metodoPago])
+
+  useEffect(() => {
+    if (abonoMetodo.includes('usd')) setAbonoMoneda('USD')
+    else setAbonoMoneda('MXN')
+  }, [abonoMetodo])
+
+  const toggleExpand = async (id: string) => {
+    const isExpanding = !expanded[id]
+    setExpanded(prev => ({ ...prev, [id]: isExpanding }))
+
+    if (isExpanding && !pagosHistory[id]) {
+      const db = supabase as any
+      const { data } = await db.from('pagos_reservas').select('*').eq('reserva_id', id).order('created_at', { ascending: false })
+      if (data) setPagosHistory(prev => ({ ...prev, [id]: data }))
+    }
+  }
+
+  const handleAbrirAprobar = (solicitud: any) => {
+    setAprobarModal({ open: true, solicitud })
+    setMontoAcordado((solicitud.costo_total || 0).toString())
+    setMontoAnticipo((solicitud.monto_apartado || 0).toString())
+    setMetodoPago('transferencia_mxn')
+  }
+
+  const handleConfirmarAprobar = async () => {
+    if (!aprobarModal.solicitud) return
+    try {
+      await aprobarSolicitud(
+        aprobarModal.solicitud.id,
+        parseFloat(montoAcordado || '0'),
+        parseFloat(montoAnticipo || '0'),
+        metodoPago,
+        moneda,
+        parseFloat(tc || '1')
+      )
+      setAprobarModal({ open: false, solicitud: null })
+    } catch (e: any) {
+      alert("Error al aprobar: " + e.message)
+    }
   }
 
   const handleGuardarAbono = async () => {
-    if (!pagoModal.reserva || !nuevoAbono) return
+    if (!abonoModal.reserva || !abonoMonto) return
     try {
-      await actualizarPagosReserva(pagoModal.reserva.id, parseFloat(nuevoAbono))
-      setPagoModal({ open: false, reserva: null })
-    } catch (e) {
-      alert("Error al actualizar abono")
+      await registrarAbono(
+        abonoModal.reserva.id,
+        parseFloat(abonoMonto),
+        abonoMetodo,
+        abonoMoneda,
+        parseFloat(abonoTc || '1'),
+        'Abono registrado manual'
+      )
+      // Refrescar historial
+      const db = supabase as any
+      const { data } = await db.from('pagos_reservas').select('*').eq('reserva_id', abonoModal.reserva.id).order('created_at', { ascending: false })
+      if (data) setPagosHistory(prev => ({ ...prev, [abonoModal.reserva.id]: data }))
+      setAbonoModal({ open: false, reserva: null })
+      setAbonoMonto('')
+    } catch (e: any) {
+      alert("Error al registrar abono: " + e.message)
     }
   }
 
@@ -61,9 +136,20 @@ export function ReservasClient({ solicitudes, reservas }: { solicitudes: Solicit
     }
   }
 
+  const handleGuardarComision = async () => {
+    if (!comisionModal.reserva || !comisionMonto) return
+    try {
+      await registrarComisionPagada(comisionModal.reserva.id, parseFloat(comisionMonto))
+      setComisionModal({ open: false, reserva: null })
+      setComisionMonto('')
+    } catch (e: any) {
+      alert("Error al registrar comisión: " + e.message)
+    }
+  }
+
   return (
     <div className="space-y-8">
-      {/* Solicitudes Pendientes (Mantener similar pero más limpio) */}
+      {/* Solicitudes Pendientes */}
       <div>
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
           <Clock className="w-5 h-5 text-amber-500" />
@@ -78,7 +164,6 @@ export function ReservasClient({ solicitudes, reservas }: { solicitudes: Solicit
           ) : (
             pendientes.map(solicitud => (
               <div key={solicitud.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                {/* Contenido solicitud */}
                 <div>
                   <h3 className="font-bold text-gray-900 flex items-center gap-2">
                     {solicitud.nombre_cliente}
@@ -93,17 +178,17 @@ export function ReservasClient({ solicitudes, reservas }: { solicitudes: Solicit
                   </h3>
                   <div className="text-sm text-gray-600 mt-1 flex flex-col gap-0.5">
                     <span className="font-medium text-teal-700">{(solicitud as any).propiedades?.titulo}</span>
-                    <span>📞 {solicitud.telefono}</span>
+                    <span>📞 +{solicitud.telefono}</span>
                     <span>Fechas: {formatDateEs(solicitud.fecha_entrada)} al {formatDateEs(solicitud.fecha_salida)} ({solicitud.noches} noches)</span>
-                    <span>Total: {formatPrice(solicitud.costo_total || 0)} • Anticipo sugerido: {formatPrice(solicitud.monto_apartado || 0)}</span>
+                    <span>Total sugerido: {formatPrice(solicitud.costo_total || 0)}</span>
                   </div>
                 </div>
                 <div className="flex gap-2 mt-2 md:mt-0">
                   <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={async () => await rechazarSolicitud(solicitud.id)}>
                     <XCircle className="w-4 h-4 mr-2" /> Rechazar
                   </Button>
-                  <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={async () => await aprobarSolicitud(solicitud.id)}>
-                    <CheckCircle className="w-4 h-4 mr-2" /> Aprobar y Bloquear
+                  <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={() => handleAbrirAprobar(solicitud)}>
+                    <CheckCircle className="w-4 h-4 mr-2" /> Aprobar y Cobrar
                   </Button>
                 </div>
               </div>
@@ -112,7 +197,7 @@ export function ReservasClient({ solicitudes, reservas }: { solicitudes: Solicit
         </div>
       </div>
 
-      {/* Reservas Activas (Compact / Accordion) */}
+      {/* Reservas Activas */}
       <div>
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
           <CheckCircle className="w-5 h-5 text-teal-600" />
@@ -128,12 +213,12 @@ export function ReservasClient({ solicitudes, reservas }: { solicitudes: Solicit
             reservas.map(reserva => {
               const r = reserva as any
               const isExpanded = !!expanded[r.id]
-              const saldo = r.costo_total - (r.monto_apartado || 0)
+              const totalAcordado = r.monto_total_acordado || r.costo_total
+              const saldo = totalAcordado - (r.monto_apartado || 0)
               const liquidado = saldo <= 0
 
               return (
                 <div key={r.id} className="bg-white rounded-xl border border-teal-200 shadow-sm overflow-hidden transition-all">
-                  {/* Fila Compacta (Siempre visible) */}
                   <div 
                     onClick={() => toggleExpand(r.id)}
                     className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-gray-50 select-none"
@@ -157,15 +242,14 @@ export function ReservasClient({ solicitudes, reservas }: { solicitudes: Solicit
                     </div>
                   </div>
 
-                  {/* Detalles Expandidos */}
                   {isExpanded && (
                     <div className="p-4 border-t border-teal-100 bg-teal-50/20">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Columna Izquierda */}
+                        {/* Columna Izquierda: Detalles del Cliente e Historial */}
                         <div>
                           <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Detalles del Cliente</h4>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm text-gray-800">📞 {r.telefono}</span>
+                            <span className="text-sm text-gray-800">📞 +{r.telefono}</span>
                             <a 
                               href={`https://wa.me/${r.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${r.nombre_cliente}, te escribo de Casas Gaby sobre tu reserva.`)}`}
                               target="_blank" rel="noreferrer"
@@ -175,35 +259,64 @@ export function ReservasClient({ solicitudes, reservas }: { solicitudes: Solicit
                             </a>
                           </div>
                           {r.email && <span className="text-sm text-gray-800 block mb-1">✉️ {r.email}</span>}
-                          <span className="text-sm text-gray-800 block mb-3">Huéspedes: {r.num_huespedes || 1}</span>
-
-                          {r.notas && (
-                            <div className="p-2 bg-yellow-50 text-yellow-800 text-xs rounded border border-yellow-200 mb-3">
-                              <strong>Notas:</strong> {r.notas}
+                          
+                          {pagosHistory[r.id] && pagosHistory[r.id].length > 0 && (
+                            <div className="mt-4">
+                              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                <History className="w-3 h-3" /> Historial de Pagos
+                              </h4>
+                              <div className="space-y-2">
+                                {pagosHistory[r.id].map(pago => (
+                                  <div key={pago.id} className="bg-white p-2 rounded border border-gray-200 text-xs flex justify-between items-center">
+                                    <div>
+                                      <span className="font-semibold block">{formatPrice(pago.monto)} {pago.moneda}</span>
+                                      <span className="text-gray-500 capitalize">{pago.metodo_pago.replace('_', ' ')}</span>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-gray-900 block font-medium">Equiv: {formatPrice(pago.monto_equivalente_mxn)}</span>
+                                      <span className="text-gray-400">{new Date(pago.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
-
-                          <Link href={`/casasgaby/propiedad/${r.propiedad_id}`} className="text-xs text-teal-600 hover:underline flex items-center">
-                            Ver propiedad en catálogo <ExternalLink className="w-3 h-3 ml-1" />
-                          </Link>
                         </div>
 
-                        {/* Columna Derecha (Finanzas y Fechas) */}
+                        {/* Columna Derecha: Finanzas y Botones */}
                         <div>
-                          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Finanzas y Fechas</h4>
+                          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Finanzas</h4>
                           <div className="bg-white p-3 rounded-lg border border-gray-200 mb-3 text-sm">
                             <div className="flex justify-between mb-1">
-                              <span className="text-gray-600">Total Estadía:</span>
-                              <span className="font-semibold">{formatPrice(r.costo_total)}</span>
+                              <span className="text-gray-600">Total Acordado:</span>
+                              <span className="font-semibold">{formatPrice(totalAcordado)}</span>
                             </div>
                             <div className="flex justify-between mb-1">
-                              <span className="text-gray-600">Pagado / Abono:</span>
+                              <span className="text-gray-600">Pagado (MXN):</span>
                               <span className="font-semibold text-teal-600">{formatPrice(r.monto_apartado || 0)}</span>
                             </div>
                             <div className="flex justify-between pt-1 border-t border-gray-100 mt-1">
-                              <span className="text-gray-900 font-bold">Saldo:</span>
+                              <span className="text-gray-900 font-bold">Saldo Pendiente:</span>
                               <span className={`font-bold ${liquidado ? 'text-green-600' : 'text-red-600'}`}>
                                 {formatPrice(saldo)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Comisión ({(r.porcentaje_comision || 2.5)}%)</h4>
+                          <div className="bg-white p-3 rounded-lg border border-purple-200 mb-3 text-sm">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-gray-600">Total Comisión:</span>
+                              <span className="font-semibold text-purple-700">{formatPrice(r.monto_comision || 0)}</span>
+                            </div>
+                            <div className="flex justify-between mb-1">
+                              <span className="text-gray-600">Comisión Pagada:</span>
+                              <span className="font-semibold text-teal-600">{formatPrice(r.comision_pagada || 0)}</span>
+                            </div>
+                            <div className="flex justify-between pt-1 border-t border-gray-100 mt-1">
+                              <span className="text-gray-900 font-bold">Saldo Comisión:</span>
+                              <span className={`font-bold ${(r.monto_comision || 0) - (r.comision_pagada || 0) <= 0 ? 'text-green-600' : 'text-amber-600'}`}>
+                                {formatPrice((r.monto_comision || 0) - (r.comision_pagada || 0))}
                               </span>
                             </div>
                           </div>
@@ -212,13 +325,22 @@ export function ReservasClient({ solicitudes, reservas }: { solicitudes: Solicit
                             <Button 
                               size="sm" 
                               variant="outline"
-                              onClick={() => {
-                                setNuevoAbono((r.monto_apartado || 0).toString())
-                                setPagoModal({ open: true, reserva: r })
-                              }}
+                              onClick={() => setAbonoModal({ open: true, reserva: r })}
                               className="text-teal-700 border-teal-200 hover:bg-teal-50"
                             >
-                              <DollarSign className="w-4 h-4 mr-1" /> Pagos
+                              <DollarSign className="w-4 h-4 mr-1" /> Registrar Abono
+                            </Button>
+                            
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setComisionMonto(((r.monto_comision || 0) - (r.comision_pagada || 0)).toString())
+                                setComisionModal({ open: true, reserva: r })
+                              }}
+                              className="text-purple-700 border-purple-200 hover:bg-purple-50"
+                            >
+                              Saldar Comisión
                             </Button>
                             
                             <Button 
@@ -231,7 +353,7 @@ export function ReservasClient({ solicitudes, reservas }: { solicitudes: Solicit
                               }}
                               className="text-blue-700 border-blue-200 hover:bg-blue-50"
                             >
-                              <CalendarIcon className="w-4 h-4 mr-1" /> Fechas
+                              <CalendarIcon className="w-4 h-4 mr-1" /> Editar Fechas
                             </Button>
                             
                             <Button 
@@ -258,31 +380,106 @@ export function ReservasClient({ solicitudes, reservas }: { solicitudes: Solicit
         </div>
       </div>
 
-      {/* Modal Pagos */}
-      <Dialog open={pagoModal.open} onOpenChange={(o) => setPagoModal({ open: o, reserva: pagoModal.reserva })}>
+      {/* Modal Aprobar Solicitud */}
+      <Dialog open={aprobarModal.open} onOpenChange={(o) => setAprobarModal({ open: o, solicitud: aprobarModal.solicitud })}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Registrar Abono / Pago</DialogTitle>
+            <DialogTitle>Aprobar y Registrar Pagos</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <p className="text-sm font-medium mb-1">Monto total pagado hasta ahora (Anticipos + Abonos)</p>
-              <Input 
-                type="number" 
-                value={nuevoAbono} 
-                onChange={e => setNuevoAbono(e.target.value)} 
-                placeholder="Ej: 5000"
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                Total de la estadía: {pagoModal.reserva && formatPrice(pagoModal.reserva.costo_total)}
-              </p>
+              <label className="text-sm font-medium block mb-1">Monto Total Acordado (MXN)</label>
+              <Input type="number" value={montoAcordado} onChange={e => setMontoAcordado(e.target.value)} />
             </div>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setPagoModal({ open: false, reserva: null })} className="flex-1">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium block mb-1">Método</label>
+                <select 
+                  className="w-full h-11 rounded-xl border border-gray-300 bg-white px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  value={metodoPago}
+                  onChange={e => setMetodoPago(e.target.value)}
+                >
+                  <option value="efectivo_mxn">Efectivo MXN</option>
+                  <option value="transferencia_mxn">Transferencia MXN</option>
+                  <option value="efectivo_usd">Efectivo USD</option>
+                  <option value="transferencia_usd">Transferencia USD</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Anticipo Recibido</label>
+                <Input type="number" value={montoAnticipo} onChange={e => setMontoAnticipo(e.target.value)} />
+              </div>
+            </div>
+            {moneda === 'USD' && (
+              <div>
+                <label className="text-sm font-medium block mb-1">Tipo de Cambio</label>
+                <Input type="number" step="0.01" value={tc} onChange={e => setTc(e.target.value)} />
+                
+                <div className="mt-3 mb-2 bg-blue-50 border border-blue-100 p-3 rounded-lg text-sm text-blue-800 flex items-center justify-between">
+                  <span>💡 Anticipo (50% = {formatPrice(parseFloat(montoAcordado || '0') / 2)}): <strong>${((parseFloat(montoAcordado || '0') / 2) / (parseFloat(tc || '1') || 1)).toFixed(2)} USD</strong></span>
+                  <button 
+                    type="button"
+                    className="text-blue-600 underline font-semibold hover:text-blue-900"
+                    onClick={() => setMontoAnticipo(((parseFloat(montoAcordado || '0') / 2) / (parseFloat(tc || '1') || 1)).toFixed(2))}
+                  >
+                    Aplicar 50%
+                  </button>
+                </div>
+
+                <p className="text-xs text-gray-500 mt-1">El anticipo de USD {montoAnticipo || 0} se registrará como MXN {formatPrice((parseFloat(montoAnticipo||'0')) * (parseFloat(tc||'1')))}</p>
+              </div>
+            )}
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={() => setAprobarModal({ open: false, solicitud: null })} className="flex-1">
+                Cancelar
+              </Button>
+              <Button onClick={handleConfirmarAprobar} className="flex-1 bg-teal-600 hover:bg-teal-700 text-white">
+                <CheckCircle className="w-4 h-4 mr-2" /> Aprobar y Bloquear
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Abonos */}
+      <Dialog open={abonoModal.open} onOpenChange={(o) => setAbonoModal({ open: o, reserva: abonoModal.reserva })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Nuevo Abono</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium block mb-1">Método</label>
+                <select 
+                  className="w-full h-11 rounded-xl border border-gray-300 bg-white px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  value={abonoMetodo}
+                  onChange={e => setAbonoMetodo(e.target.value)}
+                >
+                  <option value="efectivo_mxn">Efectivo MXN</option>
+                  <option value="transferencia_mxn">Transferencia MXN</option>
+                  <option value="efectivo_usd">Efectivo USD</option>
+                  <option value="transferencia_usd">Transferencia USD</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Monto Recibido</label>
+                <Input type="number" value={abonoMonto} onChange={e => setAbonoMonto(e.target.value)} />
+              </div>
+            </div>
+            {abonoMoneda === 'USD' && (
+              <div>
+                <label className="text-sm font-medium block mb-1">Tipo de Cambio</label>
+                <Input type="number" step="0.01" value={abonoTc} onChange={e => setAbonoTc(e.target.value)} />
+                <p className="text-xs text-gray-500 mt-1">El abono de USD {abonoMonto || 0} equivale a MXN {formatPrice((parseFloat(abonoMonto||'0')) * (parseFloat(abonoTc||'1')))}</p>
+              </div>
+            )}
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={() => setAbonoModal({ open: false, reserva: null })} className="flex-1">
                 Cancelar
               </Button>
               <Button onClick={handleGuardarAbono} className="flex-1 bg-teal-600 hover:bg-teal-700 text-white">
-                <Save className="w-4 h-4 mr-2" /> Guardar
+                <Save className="w-4 h-4 mr-2" /> Guardar Abono
               </Button>
             </div>
           </div>
@@ -307,14 +504,40 @@ export function ReservasClient({ solicitudes, reservas }: { solicitudes: Solicit
               </div>
             </div>
             <p className="text-xs text-gray-500">
-              * Nota: Si cambias las fechas, el sistema recalculará automáticamente el Total de la estadía usando las tarifas de la propiedad, pero conservará los abonos registrados.
+              * Nota: Si cambias las fechas, el sistema recalculará el Total base, pero tendrás que ajustarlo manualmente como "Total Acordado" si es necesario.
             </p>
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => setFechasModal({ open: false, reserva: null })} className="flex-1">
                 Cancelar
               </Button>
               <Button onClick={handleGuardarFechas} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
                 <Save className="w-4 h-4 mr-2" /> Guardar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Comision */}
+      <Dialog open={comisionModal.open} onOpenChange={(o) => setComisionModal({ open: o, reserva: comisionModal.reserva })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Saldar Comisión</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium block mb-1">Monto Pagado al Gestor/Desarrollador</label>
+              <Input type="number" value={comisionMonto} onChange={e => setComisionMonto(e.target.value)} />
+            </div>
+            <p className="text-xs text-gray-500">
+              Se registrará el pago de la comisión por la reserva de {comisionModal.reserva?.nombre_cliente}.
+            </p>
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={() => setComisionModal({ open: false, reserva: null })} className="flex-1">
+                Cancelar
+              </Button>
+              <Button onClick={handleGuardarComision} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white">
+                <Save className="w-4 h-4 mr-2" /> Registrar Comisión
               </Button>
             </div>
           </div>
