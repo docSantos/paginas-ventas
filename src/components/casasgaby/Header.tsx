@@ -1,4 +1,4 @@
-﻿// src/components/casasgaby/Header.tsx
+// src/components/casasgaby/Header.tsx
 'use client'
 
 import Link from 'next/link'
@@ -44,14 +44,7 @@ export function Header() {
             className="block py-2 px-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
             onClick={() => setMenuOpen(false)}
           >
-            🏠 Catálogo de Casas
-          </Link>
-          <Link
-            href="/casasgaby/solicitudes"
-            className="block py-2 px-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
-            onClick={() => setMenuOpen(false)}
-          >
-            📋 Mis Solicitudes
+            🏡 Catálogo de Casas
           </Link>
           <Link
             href="/casasgaby/admin"

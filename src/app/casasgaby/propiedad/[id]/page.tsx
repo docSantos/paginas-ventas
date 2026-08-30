@@ -58,6 +58,7 @@ export default async function PropiedadPage({
   let propiedad = null
   let isDemo = true
   let reservasActivas: Pick<Reserva, 'fecha_entrada' | 'fecha_salida'>[] = []
+  let adminPhone: string | undefined = undefined
 
   if (!isSupabaseConfigured()) {
     propiedad = MOCK_PROPIEDADES.find(p => p.id === id) || null
@@ -84,6 +85,15 @@ export default async function PropiedadPage({
         if (reservas) {
           reservasActivas = reservas
         }
+        
+        // 3. Obtener número de WA activo
+        const { data: activePhone } = await db
+          .from('configuracion_telefonos')
+          .select('telefono')
+          .eq('activo', true)
+          .single()
+          
+        adminPhone = activePhone?.telefono || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "529981424300"
       } else {
         propiedad = MOCK_PROPIEDADES.find(p => p.id === id) || null
       }
@@ -102,6 +112,7 @@ export default async function PropiedadPage({
       propiedad={propiedad} 
       isDemo={isDemo} 
       reservas={reservasActivas}
+      adminPhone={adminPhone}
     />
   )
 }

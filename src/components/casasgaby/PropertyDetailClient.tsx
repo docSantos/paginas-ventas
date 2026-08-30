@@ -9,13 +9,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import { calculateStayTotal } from '@/lib/pricing'
-import { formatPrice } from '@/lib/utils'
+import { formatPrice, formatDateEs } from '@/lib/utils'
 import type { Propiedad, Reserva } from '@/types/casasgaby'
 
 interface PropertyDetailClientProps {
   propiedad: Propiedad
   isDemo?: boolean
   reservas?: Pick<Reserva, 'fecha_entrada' | 'fecha_salida'>[]
+  adminPhone?: string
 }
 
 const AMENIDAD_ICONS: Record<string, string> = {
@@ -40,7 +41,7 @@ function getAmenidadIcon(amenidad: string): string {
   return key ? AMENIDAD_ICONS[key] : '✨'
 }
 
-export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [] }: PropertyDetailClientProps) {
+export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [], adminPhone }: PropertyDetailClientProps) {
   const router = useRouter()
   const [fechaEntrada, setFechaEntrada] = useState('')
   const [fechaSalida, setFechaSalida] = useState('')
@@ -119,7 +120,7 @@ export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [] 
           propiedad_id: propiedad.id,
           titulo_propiedad: propiedad.titulo,
           nombre_cliente: formData.nombre,
-          telefono: formData.telefono,
+          telefono: `52${formData.telefono}`,
           email: formData.correo,
           fecha_entrada: fechaEntrada,
           fecha_salida: fechaSalida,
@@ -131,8 +132,7 @@ export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [] 
       })
 
       // 2. Redirigir a WhatsApp
-      // Usa la variable de entorno, si no existe usa el número por defecto 529981424300
-      const adminPhone = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "529981424300"
+      const finalAdminPhone = adminPhone || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "529981424300"
       const text = `Hola, me interesa revisar disponibilidad para:
 *${propiedad.titulo}*
 
@@ -151,7 +151,7 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
 
 ¿Tienen disponibilidad?`
       
-      const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(text)}`
+      const whatsappUrl = `https://wa.me/${finalAdminPhone}?text=${encodeURIComponent(text)}`
       window.open(whatsappUrl, '_blank')
       
       setIsModalOpen(false)
@@ -347,6 +347,17 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
             </div>
           </div>
 
+          {reservas.length > 0 && (
+            <div className="mb-4 p-3 bg-red-50 text-red-800 text-sm rounded-xl border border-red-100">
+              <p className="font-semibold mb-1 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> Fechas ocupadas:</p>
+                <ul className="list-disc pl-5 space-y-0.5 text-xs">
+                  {reservas.map((r, i) => (
+                    <li key={i}>{formatDateEs(r.fecha_entrada)} al {formatDateEs(r.fecha_salida)}</li>
+                  ))}
+                </ul>
+            </div>
+          )}
+
           {cotizacion && !errorFechas && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex justify-between text-gray-600 text-sm mb-2">
@@ -396,14 +407,26 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
               value={formData.nombre}
               onChange={e => setFormData({...formData, nombre: e.target.value})}
             />
-            <Input 
-              label="Teléfono" 
-              type="tel" 
-              required 
-              placeholder="Tu número de celular"
-              value={formData.telefono}
-              onChange={e => setFormData({...formData, telefono: e.target.value})}
-            />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-gray-700">
+                  Teléfono (WhatsApp)
+                </label>
+                <div className="relative flex items-center w-full">
+                  <div className="absolute left-3 flex items-center gap-1.5 text-gray-500 font-medium select-none pointer-events-none">
+                    <span className="text-lg leading-none">🇲🇽</span>
+                    <span>+52</span>
+                  </div>
+                  <Input 
+                    type="tel" 
+                    required 
+                    maxLength={10}
+                    placeholder="1234567890"
+                    className="pl-[4.5rem]"
+                    value={formData.telefono}
+                    onChange={e => setFormData({...formData, telefono: e.target.value.replace(/\D/g,'')})}
+                  />
+                </div>
+              </div>
             <Input 
               label="Correo electrónico (opcional)" 
               type="email" 

@@ -1,4 +1,4 @@
-﻿// src/components/ui/dialog.tsx
+// src/components/ui/dialog.tsx
 'use client'
 
 import * as React from 'react'
@@ -15,7 +15,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center sm:items-end">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4">
       {/* Overlay */}
       <div 
         className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
@@ -26,9 +26,10 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
       {/* Dialog content */}
       <div 
         className={cn(
-          "relative z-50 w-full max-w-lg bg-white shadow-xl",
-          "sm:rounded-t-2xl md:rounded-2xl",
-          "animate-in fade-in slide-in-from-bottom-8 duration-200"
+          "relative z-[60] w-full max-w-lg bg-white shadow-xl",
+          "rounded-t-2xl sm:rounded-2xl",
+          "animate-in fade-in slide-in-from-bottom-8 duration-200",
+          "max-h-[90vh] overflow-y-auto"
         )}
         role="dialog"
         aria-modal="true"

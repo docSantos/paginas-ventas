@@ -98,6 +98,8 @@ export async function aprobarSolicitud(solicitudId: string) {
       fecha_salida: solicitud.fecha_salida,
       costo_total: solicitud.costo_total || 0,
       monto_apartado: solicitud.monto_apartado || 0,
+      num_huespedes: solicitud.num_huespedes || 1,
+      notas: solicitud.notas || '',
       estado: 'Activa'
     })
 
@@ -115,6 +117,32 @@ export async function aprobarSolicitud(solicitudId: string) {
   return { success: true }
 }
 
+export async function cancelarReserva(reservaId: string) {
+  const supabase = await createClient()
+  const db = supabase as any
+
+  const { data: reserva, error: fetchErr } = await db
+    .from('reservas')
+    .select('propiedad_id')
+    .eq('id', reservaId)
+    .single()
+
+  if (fetchErr) throw new Error('Error al buscar la reserva: ' + fetchErr.message)
+
+  const { error } = await db
+    .from('reservas')
+    .delete()
+    .eq('id', reservaId)
+
+  if (error) throw new Error('Error al cancelar: ' + error.message)
+
+  revalidatePath('/casasgaby/admin/reservas')
+  if (reserva?.propiedad_id) {
+    revalidatePath(`/casasgaby/propiedad/${reserva.propiedad_id}`)
+  }
+  return { success: true }
+}
+
 export async function rechazarSolicitud(solicitudId: string) {
   const supabase = await createClient()
   const db = supabase as any
@@ -127,5 +155,40 @@ export async function rechazarSolicitud(solicitudId: string) {
   if (error) throw new Error('Error al rechazar: ' + error.message)
 
   revalidatePath('/casasgaby/admin/reservas')
+  return { success: true }
+}
+
+export async function actualizarPagosReserva(reservaId: string, nuevoAbono: number) {
+  const supabase = await createClient()
+  const db = supabase as any
+
+  const { error } = await db
+    .from('reservas')
+    .update({ monto_apartado: nuevoAbono })
+    .eq('id', reservaId)
+
+  if (error) throw new Error('Error al actualizar pagos: ' + error.message)
+
+  revalidatePath('/casasgaby/admin/reservas')
+  return { success: true }
+}
+
+export async function actualizarFechasReserva(reservaId: string, propiedadId: string, entrada: string, salida: string, total: number) {
+  const supabase = await createClient()
+  const db = supabase as any
+
+  const { error } = await db
+    .from('reservas')
+    .update({ 
+      fecha_entrada: entrada,
+      fecha_salida: salida,
+      costo_total: total
+    })
+    .eq('id', reservaId)
+
+  if (error) throw new Error('Error al actualizar fechas: ' + error.message)
+
+  revalidatePath('/casasgaby/admin/reservas')
+  revalidatePath(`/casasgaby/propiedad/${propiedadId}`)
   return { success: true }
 }

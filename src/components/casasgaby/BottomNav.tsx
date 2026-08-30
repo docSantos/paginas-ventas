@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -7,8 +7,6 @@ import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/casasgaby',          label: 'Inicio',     icon: Home },
-  { href: '/casasgaby/buscar',   label: 'Buscar',     icon: Search },
-  { href: '/casasgaby/reservas', label: 'Reservas',   icon: CalendarDays },
   { href: '/casasgaby/admin',    label: 'Admin',      icon: Settings },
 ]
 
@@ -17,7 +15,8 @@ export function BottomNav() {
 
   // Ocultar la barra de navegación global en la vista de detalles de propiedad
   // ya que esa vista tiene su propia barra fija de "Reservar"
-  if (pathname.includes('/propiedad/')) {
+  // Ocultar la barra de navegación global en detalles de propiedad y en el panel de admin
+  if (pathname.includes('/propiedad/') || pathname.startsWith('/casasgaby/admin')) {
     return null
   }
 
