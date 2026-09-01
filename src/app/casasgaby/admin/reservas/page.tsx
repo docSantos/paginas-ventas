@@ -24,9 +24,12 @@ export default async function ReservasPage() {
     .select(`*, propiedades ( titulo )`)
     .order('created_at', { ascending: false })
 
+  const { data: servicios } = await supabase.from('catalogo_servicios').select('*').eq('tenant_id', 'casasgaby').eq('activo', true)
+  const { data: tenant } = await supabase.from('tenants_config').select('porcentaje_comision_extras, porcentaje_comision_base').eq('id', 'casasgaby').maybeSingle() as { data: any }
+
   const { data: reservas } = await supabase
     .from('reservas')
-    .select(`*, propiedades ( id, titulo, precio_por_noche, precio_por_semana, precio_por_mes )`)
+    .select(`*, propiedades ( id, titulo, precio_por_noche, precio_por_semana, precio_por_mes ), ajustes_reserva (*), comisiones (*), transacciones (*)`)
     .eq('estado', 'Activa')
     .order('fecha_entrada', { ascending: true })
 
@@ -40,6 +43,9 @@ export default async function ReservasPage() {
       <ReservasClient 
         solicitudes={solicitudes || []} 
         reservas={reservas || []} 
+        servicios={servicios || []}
+        tenantExtras={tenant?.porcentaje_comision_extras || 5}
+        tenantBase={tenant?.porcentaje_comision_base || 2.50}
       />
     </>
   )

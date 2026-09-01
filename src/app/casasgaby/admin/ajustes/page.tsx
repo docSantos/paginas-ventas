@@ -1,12 +1,17 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import PhoneInputField from '@/components/PhoneInputField'
+import { crearServicio, actualizarServicio, eliminarServicio } from '@/app/casasgaby/admin/actions'
+import { Edit2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { formatPrice } from '@/lib/utils'
 import { Plus, Trash2, Phone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { COUNTRIES } from '@/lib/countries'
-import { formatPhone, isPhoneValid } from '@/lib/utils'
+import { formatPhone, isPhoneValid, formatPhoneWithFlag } from '@/lib/utils'
 
 interface Telefono {
   id: string
@@ -32,11 +37,87 @@ export default function AjustesClient() {
   const [telefonos, setTelefonos] = useState<Telefono[]>([])
   const [nuevoNumero, setNuevoNumero] = useState('')
   const [nuevaEtiqueta, setNuevaEtiqueta] = useState('')
-  const [lada, setLada] = useState('52')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   const supabase = createClient()
+
+  
+  const [servicios, setServicios] = useState<any[]>([])
+  const [modalServicio, setModalServicio] = useState<{ open: boolean, servicio: any | null }>({ open: false, servicio: null })
+  const [servNombre, setServNombre] = useState('')
+  const [servDesc, setServDesc] = useState('')
+  const [servPrecio, setServPrecio] = useState('')
+  const [servTipo, setServTipo] = useState('fijo')
+  
+  const loadServicios = async () => {
+    const db = supabase as any
+    const { data } = await db.from('catalogo_servicios').select('*').eq('tenant_id', 'casasgaby').order('created_at', { ascending: true })
+    if (data) setServicios(data)
+  }
+
+  useEffect(() => {
+    loadServicios()
+  }, [])
+
+  const handleSaveServicio = async () => {
+    try {
+      setSaving(true)
+      if (modalServicio.servicio) {
+        await actualizarServicio(modalServicio.servicio.id, {
+          nombre: servNombre,
+          descripcion: servDesc,
+          precio_base: Number(servPrecio),
+          tipo_tarifa: servTipo
+        })
+      } else {
+        await crearServicio(servNombre, servDesc, Number(servPrecio), servTipo, true)
+      }
+      setModalServicio({ open: false, servicio: null })
+      await loadServicios()
+    } catch(e: any) {
+      alert(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const toggleServicio = async (id: string, activo: boolean) => {
+    try {
+      setSaving(true)
+      await actualizarServicio(id, { activo })
+      await loadServicios()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteServicio = async (id: string) => {
+    if (!confirm('¿Eliminar servicio?')) return
+    try {
+      setSaving(true)
+      await eliminarServicio(id)
+      await loadServicios()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const openServicioModal = (s: any = null) => {
+    if (s) {
+      setServNombre(s.nombre)
+      setServDesc(s.descripcion || '')
+      setServPrecio(String(s.precio_base))
+      setServTipo(s.tipo_tarifa)
+      setModalServicio({ open: true, servicio: s })
+    } else {
+      setServNombre('')
+      setServDesc('')
+      setServPrecio('')
+      setServTipo('fijo')
+      setModalServicio({ open: true, servicio: null })
+    }
+  }
 
   const loadConfig = async () => {
     const db = supabase as any
@@ -56,10 +137,9 @@ export default function AjustesClient() {
   }, [])
 
   const addNumber = async () => {
-    if (!isPhoneValid(nuevoNumero, lada)) return
-    
-    const cleanNumber = nuevoNumero.replace(/\D/g, '')
-    const fullNumber = `${lada}${cleanNumber}`
+    const rawNumber = nuevoNumero.replace(/\D/g, '')
+    if (rawNumber.length < 10) return
+    const fullNumber = rawNumber
     
     // Check if already exists
     if (telefonos.some(t => t.telefono === fullNumber)) return
@@ -137,40 +217,14 @@ export default function AjustesClient() {
               onChange={e => setNuevaEtiqueta(e.target.value)}
               className="w-full sm:max-w-[200px]"
             />
-            <div className="flex w-full sm:max-w-[280px]">
-              <select
-                className="h-11 rounded-l-xl border border-r-0 border-gray-300 bg-gray-50 px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 max-w-[120px]"
-                value={lada}
-                onChange={(e) => {
-                  const newLada = e.target.value
-                  setLada(newLada)
-                  setNuevoNumero(formatPhone(nuevoNumero, newLada))
-                }}
-              >
-                {COUNTRIES.map((country, idx) => (
-                  country.code === 'separator' ? (
-                    <option key={`sep-${idx}`} disabled>──────────</option>
-                  ) : (
-                    <option key={`${country.code}-${country.name}`} value={country.code}>
-                      {country.flag} +{country.code} ({country.name})
-                    </option>
-                  )
-                ))}
-              </select>
-              <Input 
-                placeholder="1234567890"
-                className="rounded-l-none pl-3"
-                value={nuevoNumero}
-                onChange={e => setNuevoNumero(formatPhone(e.target.value, lada))}
-              />
-            </div>
-            <Button onClick={addNumber} disabled={!isPhoneValid(nuevoNumero, lada) || saving} className="shrink-0 w-full sm:w-auto">
+            <div className="w-full sm:max-w-[280px]"><PhoneInputField value={nuevoNumero} onChange={setNuevoNumero} /></div>
+            <Button onClick={addNumber} disabled={nuevoNumero.replace(/\D/g, "").length < 10 || saving} className="shrink-0 w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" /> Agregar
             </Button>
           </div>
-          {nuevoNumero.length > 0 && !isPhoneValid(nuevoNumero, lada) && (
-            <p className="text-xs text-red-500 mt-2">Ingresa un número válido ({lada === '52' || lada === '1' ? '10' : '8-15'} dígitos)</p>
-          )}
+          {nuevoNumero.length > 0 && nuevoNumero.replace(/\D/g, '').length < 10 && (
+              <p className="text-xs text-red-500 mt-2">Ingresa un número válido (mínimo 10 dígitos)</p>
+            )}
 
         <div className="space-y-3 mt-6">
           {telefonos.length === 0 && (
@@ -189,7 +243,7 @@ export default function AjustesClient() {
                 />
                 <div>
                   <div className="font-medium text-gray-900">
-                    {getPhoneDisplay(tel.telefono)}
+                    {formatPhoneWithFlag(tel.telefono)}
                   </div>
                   {tel.etiqueta && <div className="text-xs text-gray-500">{tel.etiqueta}</div>}
                 </div>
@@ -206,6 +260,102 @@ export default function AjustesClient() {
             </div>
           ))}
         </div>
+
+      {/* SECCIÓN SERVICIOS ESPECIALES */}
+      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mt-8">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2">Catálogo de Servicios</h2>
+            <p className="text-sm text-gray-600 mt-1">Gestiona servicios adicionales para agregar como cargos a las reservas.</p>
+          </div>
+          <Button onClick={() => openServicioModal()}>+ Agregar Servicio</Button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase">
+              <tr>
+                <th className="px-4 py-3">Servicio</th>
+                <th className="px-4 py-3">Tarifa</th>
+                <th className="px-4 py-3">Precio Base</th>
+                <th className="px-4 py-3 text-center">% Comisión</th>
+                <th className="px-4 py-3 text-center">Estado</th>
+                <th className="px-4 py-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {servicios.length === 0 && (
+                <tr><td colSpan={6} className="text-center py-4 text-gray-500">No hay servicios</td></tr>
+              )}
+              {servicios.map(s => (
+                <tr key={s.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <div className="font-semibold text-gray-900">{s.nombre}</div>
+                    <div className="text-xs text-gray-500">{s.descripcion}</div>
+                  </td>
+                  <td className="px-4 py-3 capitalize">{s.tipo_tarifa.replace('_', ' ')}</td>
+                  <td className="px-4 py-3">{formatPrice(s.precio_base)}</td>
+                  <td className="px-4 py-3 text-center font-medium text-purple-600">{s.porcentaje_comision ?? 5}%</td>
+                  <td className="px-4 py-3 text-center">
+                    <button 
+                      onClick={() => toggleServicio(s.id, !s.activo)}
+                      className={`px-2 py-0.5 rounded text-xs font-bold uppercase transition-colors ${s.activo ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                    >
+                      {s.activo ? 'Activo' : 'Inactivo'}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-right flex justify-end gap-2">
+                    <button onClick={() => openServicioModal(s)} className="text-gray-400 hover:text-blue-600 p-1"><Edit2 className="w-4 h-4" /></button>
+                    <button onClick={() => handleDeleteServicio(s.id)} className="text-gray-400 hover:text-red-600 p-1"><Trash2 className="w-4 h-4" /></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* MODAL SERVICIO */}
+      <Dialog open={modalServicio.open} onOpenChange={o => setModalServicio(p => ({...p, open: o}))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{modalServicio.servicio ? 'Editar Servicio' : 'Nuevo Servicio'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium block mb-1">Nombre del Servicio</label>
+              <Input value={servNombre} onChange={e => setServNombre(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1">Descripción</label>
+              <Input value={servDesc} onChange={e => setServDesc(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium block mb-1">Precio Base</label>
+                <Input type="number" min="0" step="any" onKeyDown={e => e.key === '-' && e.preventDefault()} value={servPrecio} onChange={e => setServPrecio(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Tipo de Tarifa</label>
+                <select className="w-full h-10 rounded-md border border-gray-300 px-3 text-sm" value={servTipo} onChange={e => setServTipo(e.target.value)}>
+                  <option value="fijo">Fijo</option>
+                  <option value="por_dia">Por Día / Cantidad</option>
+                  <option value="por_km">Por Km</option>
+                  <option value="negociable">Negociable</option>
+                </select>
+              </div>
+            </div>
+            <div className="bg-purple-50 p-3 rounded-lg border border-purple-100 mt-2">
+              <span className="text-sm font-medium text-purple-900 block mb-0.5">Comisión de servicio 5%</span>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={() => setModalServicio(p => ({...p, open: false}))} className="flex-1">Cancelar</Button>
+              <Button onClick={handleSaveServicio} className="flex-1" disabled={saving}>Guardar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       </div>
     </div>
   )

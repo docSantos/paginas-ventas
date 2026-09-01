@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Image from 'next/image'
-import { ArrowLeft, Users, CheckCircle2, MessageCircle, AlertCircle, Share2, BedDouble, Send, MapPin } from 'lucide-react'
+import { ArrowLeft, Users, CheckCircle2, MessageCircle, AlertCircle, Share2, BedDouble, Send, MapPin, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -52,6 +52,7 @@ export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [],
   const [formData, setFormData] = useState({ nombre: '', telefono: '', correo: '' })
   const [lada, setLada] = useState('52')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false)
   const [errorFechas, setErrorFechas] = useState('')
 
   const cotizacion = useMemo(() => {
@@ -157,6 +158,7 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
       window.open(whatsappUrl, '_blank')
       
       setIsModalOpen(false)
+      setShowSuccessBanner(true)
     } catch (err) {
       alert('Error al procesar la solicitud')
     } finally {
@@ -376,6 +378,23 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
             </div>
           )}
         </div>
+
+        {showSuccessBanner && (
+          <div className="w-full mt-4 bg-emerald-50 text-emerald-900 border border-emerald-300 rounded-lg p-4 shadow-sm relative flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">
+                ¡Tu solicitud ha sido enviada con éxito! Nos pondremos en contacto contigo a la brevedad para confirmar los detalles.
+              </p>
+            </div>
+            <button 
+              onClick={() => setShowSuccessBanner(false)}
+              className="text-emerald-700 hover:text-emerald-900 p-1 -mr-2 -mt-2 rounded-md hover:bg-emerald-100 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] flex items-center justify-between z-40 max-w-2xl mx-auto shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)]">
