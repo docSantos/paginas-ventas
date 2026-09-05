@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, Clock, ExternalLink, ChevronDown, ChevronUp, DollarSign, Calendar as CalendarIcon, Save, History } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, ChevronDown, ChevronUp, DollarSign, Calendar as CalendarIcon, Save, History } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -11,6 +11,21 @@ import { aprobarSolicitud, rechazarSolicitud, registrarAbono, registrarComisionP
 import type { Solicitud, Reserva } from '@/types/casasgaby'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+
+const tieneConflictoEntreSolicitudes = (solicitudActual: any, todasLasSolicitudes: any[]) => {
+  return todasLasSolicitudes.some((otra) => {
+    if (otra.id === solicitudActual.id) return false;
+    if (otra.propiedad_id !== solicitudActual.propiedad_id) return false;
+    if (otra.estado !== 'Pendiente') return false;
+    
+    const inicioA = new Date(solicitudActual.fecha_entrada);
+    const finA = new Date(solicitudActual.fecha_salida);
+    const inicioB = new Date(otra.fecha_entrada);
+    const finB = new Date(otra.fecha_salida);
+    
+    return inicioA < finB && finA > inicioB;
+  });
+};
 
 export function ReservasClient({ solicitudes, reservas, servicios = [], tenantExtras = 5, tenantBase = 2.50 }: { solicitudes: Solicitud[], reservas: any[], servicios?: any[], tenantExtras?: number, tenantBase?: number }) {
   const pendientes = solicitudes.filter(s => s.estado === 'Pendiente')
@@ -207,7 +222,7 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
         const sumaExtras = extrasPayload.reduce((sum, e) => sum + (e?.monto || 0), 0);
         const baseCalculada = currentMonto - sumaExtras;
 
-        await aprobarSolicitud(
+        const res = await aprobarSolicitud(
           aprobarModal.solicitud.id,
           baseCalculada,
           parseFloat(montoAnticipo || '0'),
@@ -216,6 +231,10 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
           parseFloat(tc || '1'),
           extrasPayload
         )
+        if (res && !res.success) {
+          alert("No es posible aprobar esta solicitud: " + (res.message || "Ocurrió un error."));
+          return;
+        }
       setAprobarModal({ open: false, solicitud: null })
     } catch (e: any) {
       alert("Error al aprobar: " + e.message)
@@ -294,11 +313,18 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
               No hay solicitudes pendientes en este momento.
             </div>
           ) : (
-            pendientes.map(solicitud => (
-              <div key={solicitud.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            pendientes.map(solicitud => {
+              const tieneConflicto = tieneConflictoEntreSolicitudes(solicitud, pendientes);
+              return (
+              <div key={solicitud.id} className={`p-5 rounded-xl border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors ${tieneConflicto ? 'border-red-400 bg-red-50/70 hover:bg-red-50' : 'bg-white border-gray-200'}`}>
                 <div>
-                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2 flex-wrap">
                     {solicitud.nombre_cliente}
+                    {tieneConflicto && (
+                      <span className="bg-red-100 text-red-700 text-[10px] sm:text-xs font-semibold px-2.5 py-0.5 sm:py-1 rounded-full border border-red-200 inline-flex items-center gap-1">
+                        ⚠️ Conflicto
+                      </span>
+                    )}
                     <a 
                       href={buildWaUrl((solicitud as any).codigo_pais, solicitud.telefono, `Hola ${solicitud.nombre_cliente}, te escribo de Casas Gaby sobre tu solicitud de reserva.`)}
                       target="_blank" 
@@ -329,7 +355,8 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
                   </Button>
                 </div>
               </div>
-            ))
+            )
+          })
           )}
         </div>
       </div>
@@ -569,6 +596,12 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
             <DialogTitle>Aprobar y Registrar Pagos</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {aprobarModal.solicitud && tieneConflictoEntreSolicitudes(aprobarModal.solicitud, pendientes) && (
+              <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-3 rounded-lg flex gap-2 items-start">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <p><strong>Atención:</strong> Hay otra solicitud pendiente compitiendo por estas mismas fechas. Al aprobar esta, la otra deberá ser rechazada o reubicada.</p>
+              </div>
+            )}
             <div>
                 <label className="text-sm font-medium block mb-1">Monto Total Acordado (MXN)</label>
                 <Input type="number" value={montoAcordado} onChange={e => {

@@ -116,6 +116,23 @@ export async function aprobarSolicitud(
   if (!solicitud) return { success: false, message: 'La solicitud no existe o ya fue eliminada.' }
   if (solicitud.estado !== 'Pendiente') throw new Error('La solicitud ya fue procesada')
 
+  // VALIDACIÓN DE OVERBOOKING
+  const { data: conflictos, error: errConflictos } = await db
+    .from('reservas')
+    .select('id, fecha_entrada, fecha_salida')
+    .eq('propiedad_id', solicitud.propiedad_id)
+    .neq('estado', 'cancelada')
+    .lt('fecha_entrada', solicitud.fecha_salida)
+    .gt('fecha_salida', solicitud.fecha_entrada);
+
+  if (errConflictos) throw new Error('Error al verificar disponibilidad de fechas.');
+  if (conflictos && conflictos.length > 0) {
+    return { 
+      success: false, 
+      message: `Conflicto de fechas: ya existe una reserva activa del ${conflictos[0].fecha_entrada} al ${conflictos[0].fecha_salida}. No se puede aprobar.` 
+    };
+  }
+
   const { data: tenant } = await db.from('tenants_config').select('porcentaje_comision_base').eq('id', 'casasgaby').maybeSingle()
   const pComision = tenant?.porcentaje_comision_base ? Number(tenant.porcentaje_comision_base) : 2.50
   

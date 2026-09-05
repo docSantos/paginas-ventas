@@ -387,10 +387,17 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
             <div className="pt-2">
               <button
                 type="button"
-                onClick={() => setShowSuccessBanner(false)}
+                onClick={() => {
+                  setFechaEntrada('')
+                  setFechaSalida('')
+                  setHuespedes(1)
+                  setSelectedExtras({})
+                  setFormData({ nombre: '', telefono: '', correo: '' })
+                  setShowSuccessBanner(false)
+                }}
                 className="w-full py-2.5 px-4 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-semibold transition"
               >
-                Modificar fechas o cotizar de nuevo
+                Cotizar una nueva solicitud
               </button>
             </div>
           </div>
