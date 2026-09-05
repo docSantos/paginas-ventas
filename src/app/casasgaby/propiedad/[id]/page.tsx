@@ -59,6 +59,7 @@ export default async function PropiedadPage({
   let isDemo = true
   let reservasActivas: Pick<Reserva, 'fecha_entrada' | 'fecha_salida'>[] = []
   let adminPhone: string | undefined = undefined
+  let serviciosActivos: any[] = []
 
   if (!isSupabaseConfigured()) {
     propiedad = MOCK_PROPIEDADES.find(p => p.id === id) || null
@@ -85,9 +86,7 @@ export default async function PropiedadPage({
           
         if (reservas) {
           reservasActivas = reservas
-        }
-        
-        // 3. Obtener número de WA activo
+        }        // 3. Obtener número de WA activo
         const { data: activePhone } = await db
           .from('configuracion_telefonos')
           .select('telefono')
@@ -95,6 +94,22 @@ export default async function PropiedadPage({
           .single()
           
         adminPhone = activePhone?.telefono || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "529981424300"
+        
+        // 4. Fetch servicios extra
+        const { data: psData, error: psError } = await db
+          .from('propiedad_servicios')
+          .select(`
+            servicio_id,
+            catalogo_servicios (*)
+          `)
+          .eq('propiedad_id', id)
+          .eq('disponible', true)
+          
+        if (psData) {
+          serviciosActivos = psData
+            .map((ps: any) => ps.catalogo_servicios)
+            .filter((c: any) => c != null)
+        }
       } else {
         propiedad = MOCK_PROPIEDADES.find(p => p.id === id) || null
       }
@@ -114,6 +129,7 @@ export default async function PropiedadPage({
       isDemo={isDemo} 
       reservas={reservasActivas}
       adminPhone={adminPhone}
+      servicios={serviciosActivos}
     />
   )
 }

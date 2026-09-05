@@ -89,7 +89,7 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
     const defaultExtras: Record<string, number> = {}
     if (solicitud.servicios_extra && Array.isArray(solicitud.servicios_extra)) {
       solicitud.servicios_extra.forEach((e: any) => {
-        defaultExtras[e.id] = e.cantidad || 1
+        defaultExtras[e.id] = e.qty || e.cantidad || 1
       })
     }
     setExtraQuantities(defaultExtras)

@@ -11,12 +11,18 @@ export const metadata = {
 export default async function EditarPropiedadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   
+  
   const supabase = await createClient()
   const { data, error } = await supabase.from('propiedades').select('*').eq('id', id).single()
   
   if (error || !data) {
     notFound()
   }
+
+  const { data: serviciosCatalogo } = await supabase.from('catalogo_servicios').select('*').eq('tenant_id', 'casasgaby').eq('activo', true)
+  const { data: propiedadServicios } = await supabase.from('propiedad_servicios').select('servicio_id').eq('propiedad_id', id).eq('disponible', true)
+  const activosIds = propiedadServicios ? propiedadServicios.map((ps: any) => ps.servicio_id) : []
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
@@ -26,7 +32,7 @@ export default async function EditarPropiedadPage({ params }: { params: Promise<
           Volver al Dashboard
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 mb-8">Editar Casa</h1>
-        <PropertyForm initialData={data} />
+        <PropertyForm initialData={data} serviciosCatalogo={serviciosCatalogo || []} initialServiciosIds={activosIds} />
       </div>
     </div>
   )

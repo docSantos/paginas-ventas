@@ -10,6 +10,7 @@ import type { Propiedad } from '@/types/casasgaby'
 
 interface PropertyCardProps {
   propiedad: Propiedad
+  serviciosExtra?: string[]
 }
 
 // Íconos de amenidades populares
@@ -31,7 +32,7 @@ function getAmenidadIcon(amenidad: string): string {
   return key ? AMENIDAD_ICONS[key] : '✓'
 }
 
-export function PropertyCard({ propiedad }: PropertyCardProps) {
+export function PropertyCard({ propiedad, serviciosExtra = [] }: PropertyCardProps) {
   const fotoUrl = propiedad.fotos?.[0] ?? null
   const amenidadesPreview = propiedad.amenidades.slice(0, 3)
 
@@ -95,7 +96,24 @@ export function PropertyCard({ propiedad }: PropertyCardProps) {
           </div>
         )}
 
-        {/* CTA */}
+        
+
+          {serviciosExtra.length > 0 && (
+            <div className="mt-3 bg-amber-50 rounded-lg p-2 border border-amber-100">
+              <p className="text-[11px] font-semibold text-amber-800 uppercase tracking-wide mb-1.5">
+                Servicios adicionales disponibles:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {serviciosExtra.map((serv, i) => (
+                  <span key={i} className="inline-flex items-center text-xs bg-white text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full shadow-sm">
+                    ✨ {serv}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* CTA */}
         <div className="mt-3 pt-3 border-t border-gray-100">
           <Link href={`/casasgaby/propiedad/${propiedad.id}`} className="block">
             <Button className="w-full" size="md">

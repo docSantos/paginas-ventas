@@ -22,7 +22,13 @@ async function getPropiedades(): Promise<{ data: Propiedad[]; isDemo: boolean }>
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("propiedades")
-      .select("*")
+      .select(`
+        *,
+        propiedad_servicios(
+          disponible,
+          catalogo_servicios(nombre)
+        )
+      `)
       .eq("activa", true)
       .order("created_at", { ascending: false });
 
@@ -69,7 +75,7 @@ async function CatalogoContent() {
       ) : (
         <div className="grid gap-4 px-4">
           {propiedades.map((propiedad) => (
-            <PropertyCard key={propiedad.id} propiedad={propiedad} />
+            <PropertyCard key={propiedad.id} propiedad={propiedad} serviciosExtra={((propiedad as any).propiedad_servicios || []).filter((ps: any) => ps.disponible).map((ps: any) => ps.catalogo_servicios?.nombre).filter(Boolean)} />
           ))}
         </div>
       )}

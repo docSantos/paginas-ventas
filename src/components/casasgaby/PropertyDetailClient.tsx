@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { ArrowLeft, Users, CheckCircle2, MessageCircle, AlertCircle, Share2, BedDouble, Send, MapPin, X } from 'lucide-react'
 import Link from 'next/link'
@@ -18,6 +18,7 @@ interface PropertyDetailClientProps {
   isDemo?: boolean
   reservas?: Pick<Reserva, 'fecha_entrada' | 'fecha_salida'>[]
   adminPhone?: string
+  servicios?: any[]
 }
 
 const AMENIDAD_ICONS: Record<string, string> = {
@@ -42,11 +43,13 @@ function getAmenidadIcon(amenidad: string): string {
   return key ? AMENIDAD_ICONS[key] : '✨'
 }
 
-export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [], adminPhone }: PropertyDetailClientProps) {
+export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [], adminPhone, servicios = [] }: PropertyDetailClientProps) {
+  console.log('Servicios recibidos en cliente:', servicios);
   const router = useRouter()
   const [fechaEntrada, setFechaEntrada] = useState('')
   const [fechaSalida, setFechaSalida] = useState('')
   const [huespedes, setHuespedes] = useState(1)
+  const [selectedExtras, setSelectedExtras] = useState<Record<string, any>>({})
   
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState({ nombre: '', telefono: '', correo: '' })
@@ -87,6 +90,24 @@ export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [],
       return null
     }
 
+    let extrasTotal = 0;
+    Object.keys(selectedExtras).forEach(servId => {
+      const serv = servicios.find((s: any) => s.id === servId);
+      const val = selectedExtras[servId];
+      if (serv && val && val.activo) {
+        if (serv.tipo_tarifa === 'por_dia') {
+          extrasTotal += Number(serv.precio_base) * (val.qty || 1);
+        } else if (serv.tipo_tarifa === 'por_trayecto') {
+          let count = 0;
+          if (val.ida) count++;
+          if (val.vuelta) count++;
+          extrasTotal += Number(serv.precio_base) * count;
+        } else {
+          extrasTotal += Number(serv.precio_base);
+        }
+      }
+    });
+
     const { total, breakdown, anticipo } = calculateStayTotal(
       noches, 
       propiedad.precio_por_noche, 
@@ -94,8 +115,11 @@ export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [],
       propiedad.precio_por_mes || undefined
     )
 
-    return { noches, total, breakdown, anticipo }
-  }, [fechaEntrada, fechaSalida, propiedad.precio_por_noche, propiedad.precio_por_semana, propiedad.precio_por_mes, reservas])
+    const finalTotal = total + extrasTotal;
+    const finalAnticipo = finalTotal / 2;
+
+    return { noches, total: finalTotal, breakdown, anticipo: finalAnticipo, extrasTotal }
+  }, [fechaEntrada, fechaSalida, propiedad.precio_por_noche, propiedad.precio_por_semana, propiedad.precio_por_mes, reservas, selectedExtras, servicios])
 
   const handleReservaClick = () => {
     if (!fechaEntrada || !fechaSalida) {
@@ -103,7 +127,7 @@ export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [],
       return
     }
     if (errorFechas || !cotizacion) {
-      alert("Por favor corrige las fechas antes de continuar")
+      alert("Las fechas seleccionadas no están disponibles. Por favor consulta el recuadro de 'Fechas ocupadas' y elige otro período.")
       return
     }
     setIsModalOpen(true)
@@ -111,12 +135,53 @@ export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [],
 
   const handleWhatsAppSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     if (!cotizacion) return
     setIsSubmitting(true)
 
+    const serviciosExtraPayload = Object.keys(selectedExtras)
+      .filter(id => selectedExtras[id]?.activo)
+      .map(id => {
+        const s = servicios.find((x: any) => x.id === id);
+        if (!s) return null;
+        const val = selectedExtras[id];
+        let finalQty = 1;
+        let finalName = s.nombre;
+        if (s.tipo_tarifa === 'por_dia') {
+          finalQty = val.qty || 1;
+        } else if (s.tipo_tarifa === 'por_trayecto') {
+          finalQty = (val.ida ? 1 : 0) + (val.vuelta ? 1 : 0);
+          if (finalQty === 0) return null;
+          if (val.ida && val.vuelta) finalName += ' (Ida y Vuelta)';
+          else if (val.ida) finalName += ' (Ida)';
+          else if (val.vuelta) finalName += ' (Vuelta)';
+        }
+        return {
+          id,
+          qty: finalQty,
+          nombre: finalName,
+          precio_base: s.precio_base,
+          tipo_tarifa: s.tipo_tarifa
+        }
+      }).filter(Boolean);
+
     try {
       // 1. Guardar solicitud en la API
-      await fetch('/api/solicitudes', {
+      console.log('PAYLOAD A ENVIAR:', {
+          propiedad_id: propiedad.id,
+          titulo_propiedad: propiedad.titulo,
+          nombre_cliente: formData.nombre,
+          telefono: `${lada}${formData.telefono.replace(/\D/g, '')}`,
+          email: formData.correo,
+          fecha_entrada: fechaEntrada,
+          fecha_salida: fechaSalida,
+          num_huespedes: huespedes,
+          noches: cotizacion.noches,
+          costo_total: cotizacion.total,
+          monto_apartado: cotizacion.anticipo,
+          servicios_extra: serviciosExtraPayload
+        });
+        await fetch('/api/solicitudes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -130,7 +195,8 @@ export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [],
           num_huespedes: huespedes,
           noches: cotizacion.noches,
           costo_total: cotizacion.total,
-          monto_apartado: cotizacion.anticipo
+          monto_apartado: cotizacion.anticipo,
+            servicios_extra: serviciosExtraPayload
         })
       })
 
@@ -147,8 +213,8 @@ Teléfono: +${lada} ${formData.telefono}
 Llegada: ${fechaEntrada}
 Salida: ${fechaSalida}
 Huéspedes: ${huespedes} (${cotizacion.breakdown})
-
-*Cotización sugerida:*
+  ${serviciosExtraPayload.length > 0 ? `\n  *Servicios Extra:*\n  ${serviciosExtraPayload.map((s: any) => `- ${s.nombre} (x${s.qty})`).join('\n  ')}\n` : ''}
+  *Cotización sugerida:*
 Total: ${formatPrice(cotizacion.total)}
 Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
 
@@ -159,7 +225,7 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
       
       setIsModalOpen(false)
       setShowSuccessBanner(true)
-    } catch (err) {
+      } catch (err) {
       alert('Error al procesar la solicitud')
     } finally {
       setIsSubmitting(false)
@@ -307,9 +373,32 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
           )}
         </div>
 
-        <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-sm">
+        {showSuccessBanner ? (
+          <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-emerald-100 text-center space-y-5 animate-fade-in">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+              ✓
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-gray-900">¡Solicitud Enviada con Éxito!</h3>
+              <p className="text-sm text-gray-600 max-w-sm mx-auto">
+                Se ha abierto WhatsApp para continuar tu confirmación. Además, hemos registrado tu solicitud en el sistema y te atenderemos enseguida.
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setShowSuccessBanner(false)}
+                className="w-full py-2.5 px-4 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-semibold transition"
+              >
+                Modificar fechas o cotizar de nuevo
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-sm">
           <h2 className="font-semibold text-lg mb-3 text-gray-900">Cotiza tu estadía</h2>
           
+          {/* 1. Inputs de Fechas */}
           <div className="grid grid-cols-2 gap-3 mb-4">
             <Input 
               type="date" 
@@ -334,6 +423,19 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
             </div>
           )}
           
+          {/* 2. Fechas Ocupadas */}
+          {reservas && reservas.length > 0 && (
+            <div className="mb-4 p-3 bg-red-50 text-red-800 text-sm rounded-xl border border-red-100">
+              <p className="font-semibold mb-1 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> Fechas ocupadas:</p>
+                <ul className="list-disc pl-5 space-y-0.5 text-xs">
+                  {reservas.map((r: any, i: number) => (
+                    <li key={i}>{formatDateEs(r.fecha_entrada)} al {formatDateEs(r.fecha_salida)}</li>
+                  ))}
+                </ul>
+            </div>
+          )}
+
+          {/* 3. Selector de Huéspedes */}
           <div className="mb-4">
             <label className="text-sm font-medium text-gray-700 mb-1.5 block">
               Huéspedes (Máx. {propiedad.capacidad_personas})
@@ -351,53 +453,165 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
             </div>
           </div>
 
-          {reservas.length > 0 && (
-            <div className="mb-4 p-3 bg-red-50 text-red-800 text-sm rounded-xl border border-red-100">
-              <p className="font-semibold mb-1 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> Fechas ocupadas:</p>
-                <ul className="list-disc pl-5 space-y-0.5 text-xs">
-                  {reservas.map((r, i) => (
-                    <li key={i}>{formatDateEs(r.fecha_entrada)} al {formatDateEs(r.fecha_salida)}</li>
-                  ))}
-                </ul>
+          {/* 4. Servicios Extra */}
+          {servicios && servicios.length > 0 && (
+            <div className="mb-4 pt-4 border-t border-gray-200">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Personaliza tu estancia con servicios extra
+              </label>
+              <div className="space-y-3">
+                {servicios.map((serv: any) => {
+                  const state = selectedExtras[serv.id] || {};
+                  const isSelected = !!state.activo;
+                  
+                  return (
+                    <div key={serv.id} className={`p-3 border rounded-xl flex flex-col gap-3 transition-colors ${isSelected ? 'bg-teal-50 border-teal-200' : 'bg-white border-gray-200'}`}>
+                      <div className="flex items-start gap-3">
+                        {serv.tipo_tarifa !== 'por_trayecto' && (
+                          <input 
+                            type="checkbox"
+                            className="mt-1 rounded text-teal-600 focus:ring-teal-500"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              setSelectedExtras((prev: any) => ({
+                                ...prev,
+                                [serv.id]: { 
+                                  ...prev[serv.id], 
+                                  activo: e.target.checked,
+                                  qty: e.target.checked ? Math.max(1, prev[serv.id]?.qty || 1) : 0
+                                }
+                              }))
+                            }}
+                          />
+                        )}
+                                                <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{serv.nombre}</p>
+                          <p className="text-xs text-gray-500">
+                            {serv.tipo_tarifa === 'por_dia' ? 'Por día' : 
+                             (serv.tipo_tarifa === 'por_trayecto' ? 'Por trayecto' : 
+                             (serv.tipo_tarifa === 'por_km' ? 'Saliendo de Puerto Morelos. Ref: Pto Morelos - Xcaret aprox. 43 km (a cotizar según destino final).' : 'Pago único'))}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          {serv.tipo_tarifa === 'por_km' ? (
+                             <>
+                               <p className="text-sm font-semibold text-teal-700">Desde {formatPrice(serv.precio_base)}</p>
+                               <p className="text-[10px] text-gray-400">/ km</p>
+                             </>
+                          ) : (
+                             <>
+                               <p className="text-sm font-semibold text-teal-700">+{formatPrice(serv.precio_base)}</p>
+                               <p className="text-[10px] text-gray-400">
+                                 {serv.tipo_tarifa === 'por_dia' ? 'x día' : (serv.tipo_tarifa === 'por_trayecto' ? 'c/u' : 'Total')}
+                               </p>
+                             </>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Controles para por_dia */}
+                      {isSelected && serv.tipo_tarifa === 'por_dia' && (
+                        <div className="ml-7 flex items-center justify-between gap-3 bg-white p-2 rounded-lg border border-teal-100">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-medium text-gray-700">Días de renta:</span>
+                            <div className="flex items-center gap-2">
+                              <button type="button" className="w-7 h-7 rounded-md border border-gray-300 flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100" onClick={() => setSelectedExtras((prev: any) => ({...prev, [serv.id]: { ...prev[serv.id], qty: Math.max(1, (prev[serv.id]?.qty || 1) - 1)}}))}>-</button>
+                              <span className="text-sm font-bold w-4 text-center">{state.qty || 1}</span>
+                              <button type="button" className="w-7 h-7 rounded-md border border-gray-300 flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100" onClick={() => setSelectedExtras((prev: any) => ({...prev, [serv.id]: { ...prev[serv.id], qty: Math.min(cotizacion?.noches || 1, (prev[serv.id]?.qty || 1) + 1)}}))}>+</button>
+                            </div>
+                          </div>
+                          <span className="text-xs font-semibold text-teal-800">
+                            Subtotal: {formatPrice(Number(serv.precio_base) * (state.qty || 1))}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Controles para por_trayecto */}
+                      {serv.tipo_tarifa === 'por_trayecto' && (
+                        <div className="flex flex-col gap-2">
+                          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer p-2 rounded hover:bg-gray-50 border border-transparent hover:border-gray-200">
+                            <input 
+                              type="checkbox"
+                              className="rounded text-teal-600 focus:ring-teal-500"
+                              checked={!!state.ida}
+                              onChange={(e) => {
+                                const newVal = e.target.checked;
+                                setSelectedExtras((prev: any) => {
+                                  const old = prev[serv.id] || {};
+                                  const isAnyActive = newVal || old.vuelta;
+                                  return {
+                                    ...prev,
+                                    [serv.id]: { ...old, ida: newVal, activo: isAnyActive }
+                                  }
+                                })
+                              }}
+                            />
+                            Ida (Aeropuerto / Origen &rarr; Casa)
+                          </label>
+                          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer p-2 rounded hover:bg-gray-50 border border-transparent hover:border-gray-200">
+                            <input 
+                              type="checkbox"
+                              className="rounded text-teal-600 focus:ring-teal-500"
+                              checked={!!state.vuelta}
+                              onChange={(e) => {
+                                const newVal = e.target.checked;
+                                setSelectedExtras((prev: any) => {
+                                  const old = prev[serv.id] || {};
+                                  const isAnyActive = old.ida || newVal;
+                                  return {
+                                    ...prev,
+                                    [serv.id]: { ...old, vuelta: newVal, activo: isAnyActive }
+                                  }
+                                })
+                              }}
+                            />
+                            Vuelta (Casa &rarr; Aeropuerto / Destino)
+                          </label>
+                          {isSelected && (
+                             <div className="text-right mt-1">
+                                <span className="text-xs font-semibold text-teal-800">
+                                  Subtotal: {formatPrice(Number(serv.precio_base) * ((state.ida ? 1 : 0) + (state.vuelta ? 1 : 0)))}
+                                </span>
+                             </div>
+                          )}
+                        </div>
+                      )}
+
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
 
+          {/* 5. Resumen Financiero */}
           {cotizacion && !errorFechas && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex justify-between text-gray-600 text-sm mb-2">
                 <span>{cotizacion.breakdown}</span>
-                <span>{formatPrice(cotizacion.total)}</span>
+                <span>{formatPrice(cotizacion.total - cotizacion.extrasTotal)}</span>
               </div>
-              <div className="flex justify-between font-bold text-gray-900 text-lg">
+              {cotizacion.extrasTotal > 0 && (
+                <div className="flex justify-between text-teal-700 text-sm mb-2">
+                  <span>Servicios extra</span>
+                  <span>+{formatPrice(cotizacion.extrasTotal)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-gray-900 text-lg border-t border-gray-100 pt-2 mt-1">
                 <span>Total estimado</span>
                 <span>{formatPrice(cotizacion.total)}</span>
               </div>
-              <p className="text-xs text-teal-700 mt-1 font-medium bg-teal-50 inline-block px-2 py-1 rounded-md">
+              <p className="text-xs text-teal-700 mt-2 font-medium bg-teal-50 inline-block px-2 py-1 rounded-md">
                 Anticipo para reservar: {formatPrice(cotizacion.anticipo)} (50%)
               </p>
             </div>
           )}
         </div>
-
-        {showSuccessBanner && (
-          <div className="w-full mt-4 bg-emerald-50 text-emerald-900 border border-emerald-300 rounded-lg p-4 shadow-sm relative flex items-start gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">
-                ¡Tu solicitud ha sido enviada con éxito! Nos pondremos en contacto contigo a la brevedad para confirmar los detalles.
-              </p>
-            </div>
-            <button 
-              onClick={() => setShowSuccessBanner(false)}
-              className="text-emerald-700 hover:text-emerald-900 p-1 -mr-2 -mt-2 rounded-md hover:bg-emerald-100 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] flex items-center justify-between z-40 max-w-2xl mx-auto shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)]">
+      {!showSuccessBanner && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] flex items-center justify-between z-40 max-w-2xl mx-auto shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)]">
         <div className="flex flex-col">
           <span className="font-bold text-lg text-gray-900 leading-none">{formatPrice(propiedad.precio_por_noche)}</span>
           <span className="text-xs text-gray-500 mt-1">/ noche base</span>
@@ -410,6 +624,7 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
           Reservar
         </Button>
       </div>
+        )}
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogHeader>

@@ -16,7 +16,8 @@ export async function POST(request: NextRequest) {
       num_huespedes,
       noches,
       costo_total,
-      monto_apartado
+      monto_apartado,
+      servicios_extra
     } = body
 
     // 1. Guardar en Supabase
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
         noches: Number(noches),
         costo_total: Number(costo_total),
         monto_apartado: Number(monto_apartado),
+        servicios_extra: servicios_extra || [],
         estado: 'Pendiente'
       }).select('id').single()
 
@@ -76,6 +78,7 @@ export async function POST(request: NextRequest) {
             noches,
             costo_total,
             monto_apartado,
+            servicios_extra,
             timestamp: new Date().toISOString()
           })
         })
