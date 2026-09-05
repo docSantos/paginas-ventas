@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     let solicitudId = null
 
     if (supabaseUrl !== 'your-supabase-project-url') {
-      const { data, error } = await supabase.from('solicitudes').insert({
+      const { data, error } = await supabase.schema('hospedaje').from('solicitudes').insert({
         propiedad_id,
         nombre_cliente,
         email: email || null,

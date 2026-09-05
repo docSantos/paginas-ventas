@@ -285,7 +285,7 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
         </div>
         {fotosExtra.length > 0 && (
           <div className="hidden md:grid grid-rows-2 gap-2">
-            {fotosExtra.map((f, i) => (
+            {fotosExtra.map((f: any, i: number) => (
               <div key={i} className="relative w-full h-full rounded-2xl overflow-hidden bg-gray-100">
                 <Image src={f} alt={`Foto ${i+2}`} fill className="object-cover" sizes="50vw" />
               </div>

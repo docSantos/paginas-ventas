@@ -14,7 +14,7 @@ export default async function ClientesPage() {
 
   // Fetch clientes with reservations and transactions
   const { data: clientes } = await supabase
-    .from('clientes')
+    .schema('hospedaje').from('clientes')
     .select('*, reservas(*, propiedades(titulo), transacciones(*)), transacciones(*)')
     .order('codigo_numero', { ascending: true })
 

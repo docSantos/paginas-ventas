@@ -35,7 +35,7 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
   
   // Cancelar Modal
   const [cancelModal, setCancelModal] = useState<{ open: boolean, reserva: Reserva | null }>({ open: false, reserva: null })
-  const [cancelData, setCancelData] = useState({ willRefund: false, amount: '', currency: 'MXN', method: 'transferencia', note: '' })
+  const [cancelData, setCancelData] = useState({ willRefund: true, amount: '', currency: 'MXN', method: 'transferencia', note: '' })
   const [isCanceling, setIsCanceling] = useState(false)
   const [editTarifaModal, setEditTarifaModal] = useState<{ open: boolean, reservaId: string, currentBase: number }>({ open: false, reservaId: '', currentBase: 0 })
   const [ajusteModal, setAjusteModal] = useState<{ open: boolean, reservaId: string }>({ open: false, reservaId: '' })
@@ -48,14 +48,14 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
   const [montoAnticipo, setMontoAnticipo] = useState('')
   const [metodoPago, setMetodoPago] = useState('efectivo_mxn')
   const [moneda, setMoneda] = useState('MXN')
-  const [tc, setTc] = useState('20.00')
+  const [tc, setTc] = useState('16.00')
 
   // Abonos Modal
   const [abonoModal, setAbonoModal] = useState<{ open: boolean, reserva: any | null }>({ open: false, reserva: null })
   const [abonoMonto, setAbonoMonto] = useState('')
   const [abonoMetodo, setAbonoMetodo] = useState('efectivo_mxn')
   const [abonoMoneda, setAbonoMoneda] = useState('MXN')
-  const [abonoTc, setAbonoTc] = useState('20.00')
+  const [abonoTc, setAbonoTc] = useState('16.00')
   
   // Fechas Modal
   const [fechasModal, setFechasModal] = useState<{ open: boolean, reserva: any | null }>({ open: false, reserva: null })
@@ -71,9 +71,23 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
   const supabase = createClient()
 
   useEffect(() => {
-    // Cuando el método cambia a usd, forzar moneda
-    if (metodoPago.includes('usd')) setMoneda('USD')
-    else setMoneda('MXN')
+    const isUSD = metodoPago.includes('usd');
+    setMoneda(isUSD ? 'USD' : 'MXN');
+
+    let currentTc = parseFloat(tc);
+    if (isNaN(currentTc) || currentTc === 20 || currentTc === 0) {
+      currentTc = 16;
+      setTc('16.00');
+    }
+
+    const total = parseFloat(montoAcordado || '0');
+    if (total > 0) {
+      if (isUSD) {
+        setMontoAnticipo((total * 0.5 / currentTc).toFixed(2));
+      } else {
+        setMontoAnticipo((total * 0.5).toString());
+      }
+    }
   }, [metodoPago])
 
   useEffect(() => {
@@ -87,7 +101,7 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
 
     if (isExpanding && !pagosHistory[id]) {
       const db = supabase as any
-      const { data } = await db.from('pagos_reservas').select('*').eq('reserva_id', id).order('created_at', { ascending: false })
+      const { data } = await db.schema('hospedaje').from('pagos_reservas').select('*').eq('reserva_id', id).order('created_at', { ascending: false })
       if (data) setPagosHistory(prev => ({ ...prev, [id]: data }))
     }
   }
@@ -254,7 +268,7 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
       )
       // Refrescar historial
       const db = supabase as any
-      const { data } = await db.from('pagos_reservas').select('*').eq('reserva_id', abonoModal.reserva.id).order('created_at', { ascending: false })
+      const { data } = await db.schema('hospedaje').from('pagos_reservas').select('*').eq('reserva_id', abonoModal.reserva.id).order('created_at', { ascending: false })
       if (data) setPagosHistory(prev => ({ ...prev, [abonoModal.reserva.id]: data }))
       setAbonoModal({ open: false, reserva: null })
       setAbonoMonto('')
@@ -566,7 +580,7 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
                                   const hasUsd = (r as any).transacciones?.some((t:any) => t.moneda === 'USD');
                                   
                                   setCancelData({ 
-                                    willRefund: false, 
+                                    willRefund: true, 
                                     amount: totalAbonado.toString(), 
                                     currency: hasUsd ? 'USD' : 'MXN', 
                                     method: 'transferencia', 
@@ -682,7 +696,7 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
                   <button 
                     type="button"
                     className="text-blue-600 underline font-semibold hover:text-blue-900"
-                    onClick={() => setMontoAnticipo(((parseFloat(montoAcordado || '0') / 2) / (parseFloat(tc || '1') || 1)).toFixed(2))}
+                    onClick={() => setMontoAnticipo(((parseFloat(montoAcordado || '0') * 0.5) / (parseFloat(tc || '16') || 16)).toFixed(2))}
                   >
                     Aplicar 50%
                   </button>
@@ -854,15 +868,17 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
                 <div className="pl-6 space-y-4 border-l-2 border-purple-100 mt-2">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-medium text-gray-700 block mb-1">Monto a reembolsar</label>
-                      <input 
-                        type="number" 
-                        min="0"
-                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        value={cancelData.amount}
-                        onChange={e => setCancelData({...cancelData, amount: e.target.value})}
-                      />
-                    </div>
+                        <label className="text-xs font-bold text-slate-900 block mb-1">
+                          Monto a reembolsar <span className="text-amber-500 ml-1">●</span>
+                        </label>
+                        <input 
+                          type="number" 
+                          min="0"
+                          className="w-full rounded-md border-2 border-amber-400 bg-amber-50/40 px-3 py-2 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
+                          value={cancelData.amount}
+                          onChange={e => setCancelData({...cancelData, amount: e.target.value})}
+                        />
+                      </div>
                     <div>
                       <label className="text-xs font-medium text-gray-700 block mb-1">Moneda</label>
                       <select 

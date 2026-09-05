@@ -18,7 +18,7 @@ export async function generateMetadata(
     propiedad = MOCK_PROPIEDADES.find(p => p.id === id) || null
   } else {
     const supabase = await createClient()
-    const { data } = await supabase.from('propiedades').select('*').eq('id', id).single()
+    const { data } = await supabase.schema('hospedaje').from('propiedades').select('*').eq('id', id).single()
     if (data) propiedad = data
   }
 
@@ -67,7 +67,7 @@ export default async function PropiedadPage({
     try {
       const supabase = await createClient()
       const { data, error } = await supabase
-        .from('propiedades')
+        .schema('hospedaje').from('propiedades')
         .select('*')
         .eq('id', id)
         .single()
@@ -79,7 +79,7 @@ export default async function PropiedadPage({
         // 2. Cargar fechas ocupadas (Reservas Activas) para el calendario usando la Vista Segura
         const db = supabase as any
         const { data: reservas } = await db
-          .from('vista_fechas_ocupadas')
+          .schema('hospedaje').from('vista_fechas_ocupadas')
           .select('fecha_entrada, fecha_salida')
           .eq('propiedad_id', id)
           .order('fecha_entrada', { ascending: true })
@@ -88,7 +88,7 @@ export default async function PropiedadPage({
           reservasActivas = reservas
         }        // 3. Obtener número de WA activo
         const { data: activePhone } = await db
-          .from('configuracion_telefonos')
+          .schema('hospedaje').from('configuracion_telefonos')
           .select('telefono')
           .eq('activo', true)
           .single()
@@ -97,7 +97,7 @@ export default async function PropiedadPage({
         
         // 4. Fetch servicios extra
         const { data: psData, error: psError } = await db
-          .from('propiedad_servicios')
+          .schema('hospedaje').from('propiedad_servicios')
           .select(`
             servicio_id,
             catalogo_servicios (*)

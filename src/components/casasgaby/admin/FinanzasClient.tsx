@@ -100,7 +100,7 @@ const [activeTab, setActiveTab] = useState<'kpis'|'comisiones'>('kpis')
     const getLostRevenue = (startBound: Date, endBound: Date) => {
       let lost = 0
       let totalFreeDays = 0
-      propiedades.forEach(prop => {
+      propiedades.filter(p => p.activa !== false).forEach(prop => {
         const dailyRate = prop.precio_por_noche || 0
         if (!dailyRate) return
 
@@ -113,11 +113,16 @@ const [activeTab, setActiveTab] = useState<'kpis'|'comisiones'>('kpis')
           const rStart = new Date(r.fecha_entrada + 'T12:00:00')
           const rEnd = new Date(r.fecha_salida + 'T12:00:00')
           
-          if (rStart <= endBound && rEnd >= startBound) {
-            const overlapStart = rStart > startBound ? rStart : startBound
-            const overlapEnd = rEnd < endBound ? rEnd : endBound
-            bookedDays += Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-          }
+          if (rStart <= endBound && rEnd > startBound) {
+              const overlapStart = rStart > startBound ? rStart : startBound
+              const rEndNight = new Date(rEnd)
+              rEndNight.setDate(rEndNight.getDate() - 1)
+              const overlapEnd = rEndNight < endBound ? rEndNight : endBound
+              
+              if (overlapEnd >= overlapStart) {
+                bookedDays += Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+              }
+            }
         })
         
         const freeDays = Math.max(0, daysInBound - bookedDays)
@@ -184,11 +189,16 @@ const [activeTab, setActiveTab] = useState<'kpis'|'comisiones'>('kpis')
         const rStart = new Date(r.fecha_entrada + 'T12:00:00')
         const rEnd = new Date(r.fecha_salida + 'T12:00:00')
         
-        if (rStart <= viewEnd && rEnd >= viewStart) {
-          const overlapStart = rStart > viewStart ? rStart : viewStart
-          const overlapEnd = rEnd < viewEnd ? rEnd : viewEnd
-          bookedDays += Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-        }
+        if (rStart <= viewEnd && rEnd > viewStart) {
+            const overlapStart = rStart > viewStart ? rStart : viewStart
+            const rEndNight = new Date(rEnd)
+            rEndNight.setDate(rEndNight.getDate() - 1)
+            const overlapEnd = rEndNight < viewEnd ? rEndNight : viewEnd
+            
+            if (overlapEnd >= overlapStart) {
+              bookedDays += Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+            }
+          }
       })
 
       const occupancyPercent = daysInView > 0 ? (bookedDays / daysInView) * 100 : 0

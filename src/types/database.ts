@@ -10,7 +10,27 @@ export type Json =
   | Json[]
 
 export interface Database {
-  public: {
+  central: {
+    Tables: {
+      transacciones_comisiones: {
+        Row: {
+          id: string
+          created_at: string
+          tenant_id: string
+          origen_modulo: string
+          referencia_id: string
+          concepto: string | null
+          monto_total: number
+          porcentaje_comision: number
+          monto_comision: number
+          estado: string
+        }
+        Insert: any
+        Update: any
+      }
+    }
+  },
+  hospedaje: {
     Tables: {
       propiedades: {
         Row: {

@@ -15,7 +15,7 @@ export default async function AdminDashboardPage() {
 
   if (!isDemo) {
     const supabase = await createClient()
-    const { data } = await supabase.from('propiedades').select('*').order('created_at', { ascending: false })
+    const { data } = await supabase.schema('hospedaje').from('propiedades').select('*').order('created_at', { ascending: false })
     if (data) propiedades = data
   }
 

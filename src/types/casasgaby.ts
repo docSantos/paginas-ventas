@@ -1,43 +1,43 @@
 import type { Database } from './database'
 
 // Tipos base de las tablas de Supabase
-export type Propiedad = Database['public']['Tables']['propiedades']['Row'] & {
+export type Propiedad = Database['hospedaje']['Tables']['propiedades']['Row'] & {
   precio_por_semana?: number | null
   precio_por_mes?: number | null
   amenidades_compartidas?: string[] | null
   ubicacion_maps_url?: string | null
 }
-export type PropiedadInsert = Database['public']['Tables']['propiedades']['Insert'] & {
+export type PropiedadInsert = Database['hospedaje']['Tables']['propiedades']['Insert'] & {
   precio_por_semana?: number | null
   precio_por_mes?: number | null
   amenidades_compartidas?: string[] | null
   ubicacion_maps_url?: string | null
 }
-export type PropiedadUpdate = Database['public']['Tables']['propiedades']['Update'] & {
+export type PropiedadUpdate = Database['hospedaje']['Tables']['propiedades']['Update'] & {
   precio_por_semana?: number | null
   precio_por_mes?: number | null
   amenidades_compartidas?: string[] | null
   ubicacion_maps_url?: string | null
 }
 
-export type Solicitud = Database['public']['Tables']['solicitudes']['Row'] & {
+export type Solicitud = Database['hospedaje']['Tables']['solicitudes']['Row'] & {
   noches?: number | null
   costo_total?: number | null
   monto_apartado?: number | null
 }
-export type SolicitudInsert = Database['public']['Tables']['solicitudes']['Insert'] & {
+export type SolicitudInsert = Database['hospedaje']['Tables']['solicitudes']['Insert'] & {
   noches?: number | null
   costo_total?: number | null
   monto_apartado?: number | null
 }
-export type SolicitudUpdate = Database['public']['Tables']['solicitudes']['Update'] & {
+export type SolicitudUpdate = Database['hospedaje']['Tables']['solicitudes']['Update'] & {
   noches?: number | null
   costo_total?: number | null
   monto_apartado?: number | null
 }
 
-export type Reserva = Database['public']['Tables']['reservas']['Row']
-export type ReservaInsert = Database['public']['Tables']['reservas']['Insert']
+export type Reserva = Database['hospedaje']['Tables']['reservas']['Row']
+export type ReservaInsert = Database['hospedaje']['Tables']['reservas']['Insert']
 
 export type EstadoSolicitud = 'Pendiente' | 'Aprobada' | 'Rechazada'
 export type EstadoReserva = 'Activa' | 'Archivada'

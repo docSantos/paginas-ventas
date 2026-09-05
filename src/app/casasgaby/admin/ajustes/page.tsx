@@ -52,7 +52,7 @@ export default function AjustesClient() {
   
   const loadServicios = async () => {
     const db = supabase as any
-    const { data } = await db.from('catalogo_servicios').select('*').eq('tenant_id', 'casasgaby').order('created_at', { ascending: true })
+    const { data } = await db.schema('hospedaje').from('catalogo_servicios').select('*').eq('tenant_id', 'casasgaby').order('created_at', { ascending: true })
     if (data) setServicios(data)
   }
 
@@ -122,7 +122,7 @@ export default function AjustesClient() {
   const loadConfig = async () => {
     const db = supabase as any
     const { data, error } = await db
-      .from('configuracion_telefonos')
+      .schema('hospedaje').from('configuracion_telefonos')
       .select('*')
       .order('created_at', { ascending: true })
       
@@ -149,7 +149,7 @@ export default function AjustesClient() {
     const isFirst = telefonos.length === 0
 
     const { error } = await db
-      .from('configuracion_telefonos')
+      .schema('hospedaje').from('configuracion_telefonos')
       .insert({
         etiqueta: nuevaEtiqueta || 'WhatsApp',
         telefono: fullNumber,
@@ -165,14 +165,14 @@ export default function AjustesClient() {
   const removeNumber = async (id: string) => {
     setSaving(true)
     const db = supabase as any
-    await db.from('configuracion_telefonos').delete().eq('id', id)
+    await db.schema('hospedaje').from('configuracion_telefonos').delete().eq('id', id)
     
     // If we deleted the active one, make another one active if exists
     const deletedWasActive = telefonos.find(t => t.id === id)?.activo
     const remaining = telefonos.filter(t => t.id !== id)
     
     if (deletedWasActive && remaining.length > 0) {
-      await db.from('configuracion_telefonos').update({ activo: true }).eq('id', remaining[0].id)
+      await db.schema('hospedaje').from('configuracion_telefonos').update({ activo: true }).eq('id', remaining[0].id)
     }
     
     await loadConfig()
@@ -184,9 +184,9 @@ export default function AjustesClient() {
     const db = supabase as any
     
     // Set all to false
-    await db.from('configuracion_telefonos').update({ activo: false }).neq('id', id)
+    await db.schema('hospedaje').from('configuracion_telefonos').update({ activo: false }).neq('id', id)
     // Set selected to true
-    await db.from('configuracion_telefonos').update({ activo: true }).eq('id', id)
+    await db.schema('hospedaje').from('configuracion_telefonos').update({ activo: true }).eq('id', id)
     
     await loadConfig()
     setSaving(false)

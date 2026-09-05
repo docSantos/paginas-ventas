@@ -13,16 +13,16 @@ export default async function FinanzasPage() {
   const db = supabase as any
 
   // Traer propiedades para calcular métricas base
-  const { data: propiedades } = await db.from('propiedades').select('*')
+  const { data: propiedades } = await db.schema('hospedaje').from('propiedades').select('*').eq('activa', true)
   
   // Traer reservas confirmadas
-  const { data: reservas } = await db.from('reservas').select('*').eq('estado', 'Activa')
+  const { data: reservas } = await db.schema('hospedaje').from('reservas').select('*').eq('estado', 'Activa')
 
   // Traer historial de pagos
-  const { data: pagos } = await db.from('transacciones').select('*').eq('tipo', 'ingreso')
+  const { data: pagos } = await db.schema('hospedaje').from('transacciones').select('*').eq('tipo', 'ingreso')
 
   // Traer comisiones
-  const { data: comisiones } = await db.from('comisiones').select('*, propiedades(titulo), reservas(fecha_entrada, nombre_cliente)').order('created_at', { ascending: false })
+  const { data: comisiones } = await db.schema('hospedaje').from('comisiones').select('*, propiedades(titulo), reservas(fecha_entrada, nombre_cliente)').order('created_at', { ascending: false })
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">

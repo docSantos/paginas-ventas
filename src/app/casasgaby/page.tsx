@@ -21,7 +21,7 @@ async function getPropiedades(): Promise<{ data: Propiedad[]; isDemo: boolean }>
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
-      .from("propiedades")
+      .schema('hospedaje').from("propiedades")
       .select(`
         *,
         propiedad_servicios(

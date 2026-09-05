@@ -20,15 +20,15 @@ export default async function ReservasPage() {
   const supabase = await createClient()
 
   const { data: solicitudes } = await supabase
-    .from('solicitudes')
+    .schema('hospedaje').from('solicitudes')
     .select(`*, propiedades ( titulo )`)
     .order('created_at', { ascending: false })
 
-  const { data: servicios } = await supabase.from('catalogo_servicios').select('*').eq('tenant_id', 'casasgaby').eq('activo', true)
-  const { data: tenant } = await supabase.from('tenants_config').select('porcentaje_comision_extras, porcentaje_comision_base').eq('id', 'casasgaby').maybeSingle() as { data: any }
+  const { data: servicios } = await supabase.schema('hospedaje').from('catalogo_servicios').select('*').eq('tenant_id', 'casasgaby').eq('activo', true)
+  const { data: tenant } = await supabase.schema('hospedaje').from('tenants_config').select('porcentaje_comision_extras, porcentaje_comision_base').eq('id', 'casasgaby').maybeSingle() as { data: any }
 
   const { data: reservas } = await supabase
-    .from('reservas')
+    .schema('hospedaje').from('reservas')
     .select(`*, propiedades ( id, titulo, precio_por_noche, precio_por_semana, precio_por_mes ), ajustes_reserva (*), comisiones (*), transacciones (*)`)
     .eq('estado', 'Activa')
     .order('fecha_entrada', { ascending: true })

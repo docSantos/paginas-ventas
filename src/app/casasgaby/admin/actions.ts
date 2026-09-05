@@ -30,7 +30,7 @@ export async function togglePropertyStatus(id: string, currentStatus: boolean) {
   const supabase = await getSupabaseServerClient()
   
   const { error } = await supabase
-    .from('propiedades')
+    .schema('hospedaje').from('propiedades')
     .update({ activa: !currentStatus })
     .eq('id', id)
     
@@ -44,7 +44,7 @@ export async function deleteProperty(id: string) {
   const supabase = await getSupabaseServerClient()
   
   const { error } = await supabase
-    .from('propiedades')
+    .schema('hospedaje').from('propiedades')
     .delete()
     .eq('id', id)
     
@@ -60,13 +60,13 @@ export async function saveProperty(data: any, id?: string, serviciosIds?: string
   
   if (id) {
     const { error } = await supabase
-      .from('propiedades')
+      .schema('hospedaje').from('propiedades')
       .update(data)
       .eq('id', id)
     if (error) throw new Error(error.message)
   } else {
     const { data: newData, error } = await supabase
-      .from('propiedades')
+      .schema('hospedaje').from('propiedades')
       .insert([data])
       .select('id')
       .single()
@@ -77,15 +77,15 @@ export async function saveProperty(data: any, id?: string, serviciosIds?: string
   // Sync servicios
   if (propId && serviciosIds !== undefined) {
     // 1. Marcar todos como no disponibles primero
-    await supabase.from('propiedad_servicios').update({ disponible: false }).eq('propiedad_id', propId);
+    await supabase.schema('hospedaje').from('propiedad_servicios').update({ disponible: false }).eq('propiedad_id', propId);
     
     // 2. Insertar o actualizar los seleccionados a true
     for (const sId of serviciosIds) {
-      const { data: exists } = await supabase.from('propiedad_servicios').select('id').eq('propiedad_id', propId).eq('servicio_id', sId).maybeSingle();
+      const { data: exists } = await supabase.schema('hospedaje').from('propiedad_servicios').select('id').eq('propiedad_id', propId).eq('servicio_id', sId).maybeSingle();
       if (exists) {
-        await supabase.from('propiedad_servicios').update({ disponible: true }).eq('id', exists.id);
+        await supabase.schema('hospedaje').from('propiedad_servicios').update({ disponible: true }).eq('id', exists.id);
       } else {
-        await supabase.from('propiedad_servicios').insert({ propiedad_id: propId, servicio_id: sId, disponible: true });
+        await supabase.schema('hospedaje').from('propiedad_servicios').insert({ propiedad_id: propId, servicio_id: sId, disponible: true });
       }
     }
   }
@@ -107,7 +107,7 @@ export async function aprobarSolicitud(
   const db = supabase as any
 
   const { data: solicitud, error: errorSol } = await db
-    .from('solicitudes')
+    .schema('hospedaje').from('solicitudes')
     .select('*')
     .eq('id', solicitudId)
     .maybeSingle()
@@ -118,7 +118,7 @@ export async function aprobarSolicitud(
 
   // VALIDACIÓN DE OVERBOOKING
   const { data: conflictos, error: errConflictos } = await db
-    .from('reservas')
+    .schema('hospedaje').from('reservas')
     .select('id, fecha_entrada, fecha_salida')
     .eq('propiedad_id', solicitud.propiedad_id)
     .neq('estado', 'cancelada')
@@ -133,7 +133,7 @@ export async function aprobarSolicitud(
     };
   }
 
-  const { data: tenant } = await db.from('tenants_config').select('porcentaje_comision_base').eq('id', 'casasgaby').maybeSingle()
+  const { data: tenant } = await db.schema('hospedaje').from('tenants_config').select('porcentaje_comision_base').eq('id', 'casasgaby').maybeSingle()
   const pComision = tenant?.porcentaje_comision_base ? Number(tenant.porcentaje_comision_base) : 2.50
   
   const sumaExtras = extras ? extras.reduce((acc, e) => acc + Number(e.monto), 0) : 0
@@ -156,7 +156,7 @@ export async function aprobarSolicitud(
     phoneDigits = phoneDigits.substring(1);
   }
 
-  const { data: clienteId, error: errCliente } = await db.rpc('upsert_cliente_reserva', {
+  const { data: clienteId, error: errCliente } = await db.schema('hospedaje').rpc('upsert_cliente_reserva', {
     p_tenant_id: 'casasgaby',
     p_nombre: solicitud.nombre_cliente || solicitud.nombre_completo || solicitud.nombre || 'Huésped',
     p_email: solicitud.email || solicitud.email_cliente || '',
@@ -168,11 +168,11 @@ export async function aprobarSolicitud(
     throw new Error('No se pudo vincular o crear el cliente.')
   }
   
-  await db.from('clientes').update({ codigo_pais: codigoPais, telefono: phoneDigits }).eq('id', clienteId);
+  await db.schema('hospedaje').from('clientes').update({ codigo_pais: codigoPais, telefono: phoneDigits }).eq('id', clienteId);
   // -------------------------
 
   const { data: reserva, error: errorRes } = await db
-    .from('reservas')
+    .schema('hospedaje').from('reservas')
     .insert({
       propiedad_id: solicitud.propiedad_id,
       cliente_id: clienteId,
@@ -184,7 +184,7 @@ export async function aprobarSolicitud(
       costo_total: solicitud.costo_total || 0,
       monto_total_acordado: nuevoTotalAcordado,
       tarifa_base: montoAcordado,
-      monto_apartado: montoAnticipo,
+      monto_apartado: moneda === 'USD' ? (montoAnticipo * tc) : montoAnticipo,
       porcentaje_comision: pComision,
       monto_comision: montoComisionCalc,
       comision_pagada: 0,
@@ -201,13 +201,13 @@ export async function aprobarSolicitud(
   // Insert payment record if anticipo > 0
   if (montoAnticipo > 0) {
     const equivalenteMXN = moneda === 'USD' ? montoAnticipo * tc : montoAnticipo;
-    const { error: pagoErr } = await db.from('transacciones').insert({
+    const { error: pagoErr } = await db.schema('hospedaje').from('transacciones').insert({
       reserva_id: reserva.id,
       cliente_id: clienteId,
       monto: montoAnticipo,
-      moneda: moneda,
-      metodo_pago: metodo,
-      tipo_cambio: tc,
+        moneda: moneda,
+        metodo_pago: metodo,
+        tipo_cambio: tc,
       concepto: 'Anticipo inicial',
       tipo: 'ingreso',
       categoria: 'anticipo',
@@ -219,7 +219,7 @@ export async function aprobarSolicitud(
   // Insert extras into ajustes_reserva
   if (extras && extras.length > 0) {
     for (const e of extras) {
-      await db.from('ajustes_reserva').insert({
+      await db.schema('hospedaje').from('ajustes_reserva').insert({
         reserva_id: reserva.id,
         tipo: 'cargo',
         concepto: e.concepto,
@@ -231,7 +231,7 @@ export async function aprobarSolicitud(
   }
 
   // --- Insertar en la tabla comisiones dedicada ---
-  const { error: comErr } = await db.from('comisiones').insert({
+  const { error: comErr } = await db.schema('hospedaje').from('comisiones').insert({
     tenant_id: 'casasgaby',
     reserva_id: reserva.id,
     propiedad_id: solicitud.propiedad_id,
@@ -246,7 +246,7 @@ export async function aprobarSolicitud(
   if (comErr) console.error('Error insertando comisión:', comErr)
 
   const { error: errorUpd } = await db
-    .from('solicitudes')
+    .schema('hospedaje').from('solicitudes')
     .update({ estado: 'Aprobada' })
     .eq('id', solicitudId)
 
@@ -264,22 +264,22 @@ export async function registrarComisionPagada(reservaId: string, montoPagado: nu
   const db = supabase as any
 
   // Get current
-  const { data: reserva, error: errFetch } = await db.from('reservas').select('monto_comision, comision_pagada').eq('id', reservaId).maybeSingle()
+  const { data: reserva, error: errFetch } = await db.schema('hospedaje').from('reservas').select('monto_comision, comision_pagada').eq('id', reservaId).maybeSingle()
   if (errFetch) throw new Error('Error al buscar reserva: ' + errFetch.message)
     if (!reserva) return { success: false, message: 'La reserva no existe o ya fue eliminada.' }
 
   const nuevoTotal = (Number(reserva.comision_pagada) || 0) + montoPagado
   const estado = nuevoTotal >= Number(reserva.monto_comision) ? 'liquidada' : 'parcial'
 
-    const { error: errUpd } = await db.from('reservas').update({
+    const { error: errUpd } = await db.schema('hospedaje').from('reservas').update({
     comision_pagada: nuevoTotal,
     estado_comision: estado
   }).eq('id', reservaId)
 
   // Sync to comisiones table
-  const { data: com } = await db.from('comisiones').select('*').eq('reserva_id', reservaId).maybeSingle()
+  const { data: com } = await db.schema('hospedaje').from('comisiones').select('*').eq('reserva_id', reservaId).maybeSingle()
   if (com) {
-    await db.from('comisiones').update({
+    await db.schema('hospedaje').from('comisiones').update({
       monto_pagado: nuevoTotal,
       estado_pago: estado === 'liquidada' ? 'liquidado' : estado
     }).eq('id', com.id)
@@ -300,7 +300,7 @@ export async function registrarPagoComisionTabla(comisionId: string, montoAbono:
   const supabase = await createClient()
   const db = supabase as any
 
-  const { data: comision, error: errFetch } = await db.from('comisiones').select('*').eq('id', comisionId).maybeSingle()
+  const { data: comision, error: errFetch } = await db.schema('hospedaje').from('comisiones').select('*').eq('id', comisionId).maybeSingle()
   if (errFetch) throw new Error('Error al buscar comisión: ' + errFetch.message)
   if (!comision) return { success: false, message: 'La comisión no existe o ya fue eliminada.' }
 
@@ -312,7 +312,7 @@ export async function registrarPagoComisionTabla(comisionId: string, montoAbono:
   const nuevoMontoPagado = Number(comision.monto_pagado) + montoAbono
   const estadoPago = nuevoMontoPagado >= Number(comision.monto_comision) ? 'liquidado' : 'parcial'
 
-  const { error: errUpd } = await db.from('comisiones').update({
+  const { error: errUpd } = await db.schema('hospedaje').from('comisiones').update({
     monto_pagado: nuevoMontoPagado,
     estado_pago: estadoPago,
     metodo_pago_comision: metodo,
@@ -342,7 +342,7 @@ export async function registrarAbono(
   const equivalenteMXN = moneda === 'USD' ? monto * tc : monto;
 
   // Validation overpayment
-  const { data: reserva, error: errFetch } = await db.from('reservas').select('monto_total_acordado, cliente_id, transacciones(monto_mxn, tipo)').eq('id', reservaId).maybeSingle()
+  const { data: reserva, error: errFetch } = await db.schema('hospedaje').from('reservas').select('monto_total_acordado, cliente_id, transacciones(monto_mxn, tipo)').eq('id', reservaId).maybeSingle()
   if (errFetch) throw new Error('Error al buscar reserva: ' + errFetch.message)
   if (!reserva) return { success: false, message: 'La reserva no existe.' }
 
@@ -353,13 +353,13 @@ export async function registrarAbono(
     throw new Error('El abono no puede exceder el saldo pendiente de MXN ' + saldoPend)
   }
 
-  const { error: pagoErr } = await db.from('transacciones').insert({
+  const { error: pagoErr } = await db.schema('hospedaje').from('transacciones').insert({
     reserva_id: reservaId,
     cliente_id: reserva.cliente_id,
     monto: monto,
-    moneda: moneda,
-    metodo_pago: metodo,
-    tipo_cambio: tc,
+      moneda: moneda,
+      metodo_pago: metodo,
+      tipo_cambio: tc,
     concepto: notas || 'Abono a reserva',
     tipo: 'ingreso',
     categoria: 'reserva'
@@ -367,10 +367,10 @@ export async function registrarAbono(
   if (pagoErr) throw new Error('Error al registrar abono: ' + pagoErr.message)
 
   // Update cached total in reservas
-  const { data: trans } = await db.from('transacciones').select('monto_mxn').eq('reserva_id', reservaId).eq('tipo', 'ingreso')
+  const { data: trans } = await db.schema('hospedaje').from('transacciones').select('monto_mxn').eq('reserva_id', reservaId).eq('tipo', 'ingreso')
   const totalPagado = trans?.reduce((sum: number, p: any) => sum + Number(p.monto_mxn), 0) || 0
 
-  await db.from('reservas').update({ monto_apartado: totalPagado }).eq('id', reservaId)
+  await db.schema('hospedaje').from('reservas').update({ monto_apartado: totalPagado }).eq('id', reservaId)
 
   revalidatePath('/casasgaby/admin/reservas')
   revalidatePath('/casasgaby/admin/clientes')
@@ -384,7 +384,7 @@ export async function cancelarReserva(reservaId: string) {
 
     // 1. Obtener datos de la reserva
     const { data: reserva, error: fetchErr } = await db
-      .from('reservas')
+      .schema('hospedaje').from('reservas')
       .select('propiedad_id')
       .eq('id', reservaId)
       .maybeSingle()
@@ -394,9 +394,9 @@ export async function cancelarReserva(reservaId: string) {
 
     // 2. Lógica de cancelación con comisiones (Envuelto en try/catch)
     try {
-      const { data: comision } = await db.from('comisiones').select('*').eq('reserva_id', reservaId).maybeSingle()
+      const { data: comision } = await db.schema('hospedaje').from('comisiones').select('*').eq('reserva_id', reservaId).maybeSingle()
       if (comision) {
-        await db.from('comisiones').update({ estado_pago: 'cancelada' }).eq('id', comision.id)
+        await db.schema('hospedaje').from('comisiones').update({ estado_pago: 'cancelada' }).eq('id', comision.id)
       }
     } catch (err) {
       console.warn("No se pudo actualizar la comisión, continuando cancelación:", err)
@@ -404,7 +404,7 @@ export async function cancelarReserva(reservaId: string) {
 
     // 3. Actualizar estado a cancelada
     const { error: updateError } = await db
-      .from('reservas')
+      .schema('hospedaje').from('reservas')
       .update({ estado: 'cancelada' })
       .eq('id', reservaId)
 
@@ -412,7 +412,7 @@ export async function cancelarReserva(reservaId: string) {
 
     // 4. Eliminar bloqueos de fechas asociados
     await db
-      .from('fechas_bloqueadas')
+      .schema('hospedaje').from('fechas_bloqueadas')
       .delete()
       .eq('reserva_id', reservaId)
 
@@ -434,7 +434,7 @@ export async function rechazarSolicitud(solicitudId: string) {
   const db = supabase as any
 
   const { error } = await db
-    .from('solicitudes')
+    .schema('hospedaje').from('solicitudes')
     .update({ estado: 'Rechazada' })
     .eq('id', solicitudId)
 
@@ -449,7 +449,7 @@ export async function actualizarPagosReserva(reservaId: string, nuevoAbono: numb
   const db = supabase as any
 
   const { error } = await db
-    .from('reservas')
+    .schema('hospedaje').from('reservas')
     .update({ monto_apartado: nuevoAbono })
     .eq('id', reservaId)
 
@@ -464,7 +464,7 @@ export async function actualizarFechasReserva(reservaId: string, propiedadId: st
   const db = supabase as any
 
   const { error } = await db
-    .from('reservas')
+    .schema('hospedaje').from('reservas')
     .update({ 
       fecha_entrada: entrada,
       fecha_salida: salida,
@@ -487,7 +487,7 @@ export async function aplicarSaldoAFavorComision(comisionActivaId: string, monto
 
   let remaining = montoRequerido
 
-  const { data: canceladas } = await db.from('comisiones')
+  const { data: canceladas } = await db.schema('hospedaje').from('comisiones')
     .select('*')
     .eq('estado_pago', 'cancelada').gt('monto_pagado', 0)
     .order('created_at', { ascending: true })
@@ -501,7 +501,7 @@ export async function aplicarSaldoAFavorComision(comisionActivaId: string, monto
     const tomar = Math.min(disponible, remaining)
     
     const nuevoMontoCancelada = disponible - tomar
-    await db.from('comisiones').update({
+    await db.schema('hospedaje').from('comisiones').update({
       monto_pagado: nuevoMontoCancelada,
       estado_pago: 'cancelada'
     }).eq('id', c.id)
@@ -511,12 +511,12 @@ export async function aplicarSaldoAFavorComision(comisionActivaId: string, monto
 
   const abonado = montoRequerido - remaining
 
-  const { data: activa } = await db.from('comisiones').select('*').eq('id', comisionActivaId).maybeSingle()
+  const { data: activa } = await db.schema('hospedaje').from('comisiones').select('*').eq('id', comisionActivaId).maybeSingle()
   if (activa) {
     const nuevoMontoPagado = Number(activa.monto_pagado) + abonado
     const estadoPago = nuevoMontoPagado >= Number(activa.monto_comision) ? 'liquidado' : 'parcial'
     
-    await db.from('comisiones').update({
+    await db.schema('hospedaje').from('comisiones').update({
       monto_pagado: nuevoMontoPagado,
       estado_pago: estadoPago,
       fecha_liquidacion: estadoPago === 'liquidado' ? new Date().toISOString() : null,
@@ -534,7 +534,7 @@ export async function actualizarTarifaBase(reservaId: string, tarifaBase: number
   const supabase = await createClient()
   const db = supabase as any
 
-  const { data: reserva } = await db.from('reservas').select('porcentaje_comision, ajustes_reserva(*)').eq('id', reservaId).maybeSingle()
+  const { data: reserva } = await db.schema('hospedaje').from('reservas').select('porcentaje_comision, ajustes_reserva(*)').eq('id', reservaId).maybeSingle()
   if (!reserva) throw new Error('Reserva no encontrada')
 
   const cargosList = reserva.ajustes_reserva?.filter((a: any) => a.tipo === 'cargo') || []
@@ -549,9 +549,9 @@ export async function actualizarTarifaBase(reservaId: string, tarifaBase: number
   const comisionCargos = cargosList.reduce((acc: number, a: any) => acc + Number(a.monto_comision || 0), 0)
   const nuevoMontoComision = comisionBaseCalculada + comisionCargos
 
-  await db.from('reservas').update({ tarifa_base: tarifaBase, monto_total_acordado: nuevoTotal, monto_comision: nuevoMontoComision }).eq('id', reservaId)
+  await db.schema('hospedaje').from('reservas').update({ tarifa_base: tarifaBase, monto_total_acordado: nuevoTotal, monto_comision: nuevoMontoComision }).eq('id', reservaId)
 
-  await db.from('comisiones').update({
+  await db.schema('hospedaje').from('comisiones').update({
     monto_estancia: nuevoTotal,
     monto_comision: nuevoMontoComision
   }).eq('reserva_id', reservaId)
@@ -570,7 +570,7 @@ export async function agregarAjusteReserva(reservaId: string, tipo: 'cargo' | 'd
   const supabase = await createClient()
   const db = supabase as any
 
-  const { data: tenant } = await db.from('tenants_config').select('porcentaje_comision_base, comision_servicios_porcentaje').eq('id', 'casasgaby').maybeSingle()
+  const { data: tenant } = await db.schema('hospedaje').from('tenants_config').select('porcentaje_comision_base, comision_servicios_porcentaje').eq('id', 'casasgaby').maybeSingle()
   const pComisionBase = tenant?.porcentaje_comision_base ? Number(tenant.porcentaje_comision_base) : 2.50
   const pComisionServicios = tenant?.comision_servicios_porcentaje ? Number(tenant.comision_servicios_porcentaje) : 5.00
 
@@ -583,9 +583,9 @@ export async function agregarAjusteReserva(reservaId: string, tipo: 'cargo' | 'd
     }
   }
 
-  await db.from('ajustes_reserva').insert({ reserva_id: reservaId, tipo, concepto, monto, porcentaje_comision, monto_comision: (monto * porcentaje_comision) / 100 })
+  await db.schema('hospedaje').from('ajustes_reserva').insert({ reserva_id: reservaId, tipo, concepto, monto, porcentaje_comision, monto_comision: (monto * porcentaje_comision) / 100 })
 
-  const { data: reserva } = await db.from('reservas').select('tarifa_base, porcentaje_comision, ajustes_reserva(*)').eq('id', reservaId).maybeSingle()
+  const { data: reserva } = await db.schema('hospedaje').from('reservas').select('tarifa_base, porcentaje_comision, ajustes_reserva(*)').eq('id', reservaId).maybeSingle()
   if (reserva) {
     const tarifaBase = Number(reserva.tarifa_base) || 0
     const cargosList = reserva.ajustes_reserva?.filter((a: any) => a.tipo === 'cargo') || []
@@ -599,9 +599,9 @@ export async function agregarAjusteReserva(reservaId: string, tipo: 'cargo' | 'd
     const comisionCargos = cargosList.reduce((acc: number, a: any) => acc + Number(a.monto_comision || 0), 0)
     const nuevoMontoComision = comisionBaseCalculada + comisionCargos
     
-    await db.from('reservas').update({ monto_total_acordado: nuevoTotal, monto_comision: nuevoMontoComision }).eq('id', reservaId)
+    await db.schema('hospedaje').from('reservas').update({ monto_total_acordado: nuevoTotal, monto_comision: nuevoMontoComision }).eq('id', reservaId)
 
-    await db.from('comisiones').update({
+    await db.schema('hospedaje').from('comisiones').update({
       monto_estancia: nuevoTotal,
       monto_comision: nuevoMontoComision
     }).eq('reserva_id', reservaId)
@@ -623,7 +623,7 @@ export async function actualizarServicio(id: string, data: any) {
   
   const supabase = await createClient()
   const db = supabase as any
-  await db.from('catalogo_servicios').update(data).eq('id', id).eq('tenant_id', 'casasgaby')
+  await db.schema('hospedaje').from('catalogo_servicios').update(data).eq('id', id).eq('tenant_id', 'casasgaby')
   revalidatePath('/casasgaby/admin/ajustes')
   revalidatePath('/casasgaby/admin/reservas')
   return { success: true }
@@ -632,7 +632,7 @@ export async function actualizarServicio(id: string, data: any) {
 export async function eliminarServicio(id: string) {
   const supabase = await createClient()
   const db = supabase as any
-  await db.from('catalogo_servicios').delete().eq('id', id).eq('tenant_id', 'casasgaby')
+  await db.schema('hospedaje').from('catalogo_servicios').delete().eq('id', id).eq('tenant_id', 'casasgaby')
   revalidatePath('/casasgaby/admin/ajustes')
   revalidatePath('/casasgaby/admin/reservas')
   return { success: true }
@@ -658,7 +658,7 @@ export async function actualizarCliente(clienteId: string, data: { nombre_comple
     }
 
     const { error } = await db
-      .from('clientes')
+      .schema('hospedaje').from('clientes')
       .update({ nombre_completo: data.nombre_completo, email: data.email.trim().toLowerCase(), telefono: digits, codigo_pais: codigoPais })
       .eq('id', clienteId)
 
@@ -676,7 +676,7 @@ export async function fusionarClientes(origenId: string, destinoId: string) {
     const supabase = await createClient()
     const db = supabase as any
 
-    const { error } = await db.rpc('merge_clientes', { 
+    const { error } = await db.schema('hospedaje').rpc('merge_clientes', { 
       cliente_origen_id: origenId, 
       cliente_destino_id: destinoId 
     })
@@ -705,7 +705,7 @@ export async function cancelarReservaConReembolso(
     const db = supabase as any
 
     const { data: reserva, error: fetchErr } = await db
-      .from('reservas')
+      .schema('hospedaje').from('reservas')
       .select('propiedad_id, cliente_id')
       .eq('id', reservaId)
       .maybeSingle()
@@ -715,9 +715,9 @@ export async function cancelarReservaConReembolso(
 
     // 1. Manejo de comisiones (Envuelto en try/catch seguro)
     try {
-      const { data: comision } = await db.from('comisiones').select('*').eq('reserva_id', reservaId).maybeSingle()
+      const { data: comision } = await db.schema('hospedaje').from('comisiones').select('*').eq('reserva_id', reservaId).maybeSingle()
       if (comision) {
-        await db.from('comisiones').update({ estado_pago: 'cancelada' }).eq('id', comision.id)
+        await db.schema('hospedaje').from('comisiones').update({ estado_pago: 'cancelada' }).eq('id', comision.id)
       }
     } catch (err) {
       console.warn("No se pudo actualizar la comisión, continuando cancelación:", err)
@@ -725,7 +725,7 @@ export async function cancelarReservaConReembolso(
 
     // 2. Insertar transaccin de reembolso si aplica
     if (datosReembolso && datosReembolso.monto > 0) {
-      const { error: transErr } = await db.from('transacciones').insert({
+      const { error: transErr } = await db.schema('hospedaje').from('transacciones').insert({
         tipo: 'egreso',
         categoria: 'reembolso',
         monto: datosReembolso.monto,
@@ -748,7 +748,7 @@ export async function cancelarReservaConReembolso(
     }
     
     const { error: updateError } = await db
-      .from('reservas')
+      .schema('hospedaje').from('reservas')
       .update(updatePayload)
       .eq('id', reservaId)
 
@@ -756,7 +756,7 @@ export async function cancelarReservaConReembolso(
 
     // 4. Eliminar bloqueos de fechas
     await db
-      .from('fechas_bloqueadas')
+      .schema('hospedaje').from('fechas_bloqueadas')
       .delete()
       .eq('reserva_id', reservaId)
 
@@ -780,9 +780,9 @@ export async function eliminarAjusteReserva(ajusteId: string, reservaId: string)
   const supabase = await createClient()
   const db = supabase as any
 
-  await db.from('ajustes_reserva').delete().eq('id', ajusteId).eq('reserva_id', reservaId)
+  await db.schema('hospedaje').from('ajustes_reserva').delete().eq('id', ajusteId).eq('reserva_id', reservaId)
 
-  const { data: reserva } = await db.from('reservas').select('tarifa_base, porcentaje_comision, ajustes_reserva(*)').eq('id', reservaId).maybeSingle()
+  const { data: reserva } = await db.schema('hospedaje').from('reservas').select('tarifa_base, porcentaje_comision, ajustes_reserva(*)').eq('id', reservaId).maybeSingle()
   if (reserva) {
     const tarifaBase = Number(reserva.tarifa_base) || 0
     const cargosList = reserva.ajustes_reserva?.filter((a: any) => a.tipo === 'cargo') || []
@@ -796,9 +796,9 @@ export async function eliminarAjusteReserva(ajusteId: string, reservaId: string)
     const comisionCargos = cargosList.reduce((acc: number, a: any) => acc + Number(a.monto_comision || 0), 0)
     const nuevoMontoComision = comisionBaseCalculada + comisionCargos
     
-    await db.from('reservas').update({ monto_total_acordado: nuevoTotal, monto_comision: nuevoMontoComision }).eq('id', reservaId)
+    await db.schema('hospedaje').from('reservas').update({ monto_total_acordado: nuevoTotal, monto_comision: nuevoMontoComision }).eq('id', reservaId)
 
-    await db.from('comisiones').update({
+    await db.schema('hospedaje').from('comisiones').update({
       monto_estancia: nuevoTotal,
       monto_comision: nuevoMontoComision
     }).eq('reserva_id', reservaId)
@@ -814,7 +814,7 @@ export async function crearServicio(nombre: string, descripcion: string, precio_
   const supabase = await createClient()
   const db = supabase as any
   
-  const { data: tenant } = await db.from('tenants_config').select('comision_servicios_porcentaje').eq('id', 'casasgaby').maybeSingle()
+  const { data: tenant } = await db.schema('hospedaje').from('tenants_config').select('comision_servicios_porcentaje').eq('id', 'casasgaby').maybeSingle()
   const pComision = tenant?.comision_servicios_porcentaje ? Number(tenant.comision_servicios_porcentaje) : 5.0
   
   const payload = {
@@ -827,7 +827,7 @@ export async function crearServicio(nombre: string, descripcion: string, precio_
     porcentaje_comision: pComision
   }
   
-  const { error } = await db.from('catalogo_servicios').insert(payload)
+  const { error } = await db.schema('hospedaje').from('catalogo_servicios').insert(payload)
   if (error) throw new Error(error.message)
   revalidatePath('/casasgaby/admin/ajustes')
   return { success: true }

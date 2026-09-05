@@ -43,13 +43,13 @@ export function PropertyForm({ initialData, serviciosCatalogo = [], initialServi
     if (type === 'privadas') {
       setFormData(prev => {
         const exists = prev.amenidades.includes(amenidad)
-        if (exists) return { ...prev, amenidades: prev.amenidades.filter(a => a !== amenidad) }
+        if (exists) return { ...prev, amenidades: prev.amenidades.filter((a: string) => a !== amenidad) }
         return { ...prev, amenidades: [...prev.amenidades, amenidad] }
       })
     } else {
       setFormData(prev => {
         const exists = prev.amenidades_compartidas.includes(amenidad)
-        if (exists) return { ...prev, amenidades_compartidas: prev.amenidades_compartidas.filter(a => a !== amenidad) }
+        if (exists) return { ...prev, amenidades_compartidas: prev.amenidades_compartidas.filter((a: string) => a !== amenidad) }
         return { ...prev, amenidades_compartidas: [...prev.amenidades_compartidas, amenidad] }
       })
     }

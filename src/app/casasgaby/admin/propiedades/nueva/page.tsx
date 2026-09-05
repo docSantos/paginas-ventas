@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export default async function NuevaPropiedadPage() {
   const supabase = await createClient()
-  const { data: serviciosCatalogo } = await supabase.from('catalogo_servicios').select('*').eq('tenant_id', 'casasgaby').eq('activo', true)
+  const { data: serviciosCatalogo } = await supabase.schema('hospedaje').from('catalogo_servicios').select('*').eq('tenant_id', 'casasgaby').eq('activo', true)
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-3xl mx-auto">

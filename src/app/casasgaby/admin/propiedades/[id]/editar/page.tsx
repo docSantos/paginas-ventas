@@ -13,14 +13,14 @@ export default async function EditarPropiedadPage({ params }: { params: Promise<
   
   
   const supabase = await createClient()
-  const { data, error } = await supabase.from('propiedades').select('*').eq('id', id).single()
+  const { data, error } = await supabase.schema('hospedaje').from('propiedades').select('*').eq('id', id).single()
   
   if (error || !data) {
     notFound()
   }
 
-  const { data: serviciosCatalogo } = await supabase.from('catalogo_servicios').select('*').eq('tenant_id', 'casasgaby').eq('activo', true)
-  const { data: propiedadServicios } = await supabase.from('propiedad_servicios').select('servicio_id').eq('propiedad_id', id).eq('disponible', true)
+  const { data: serviciosCatalogo } = await supabase.schema('hospedaje').from('catalogo_servicios').select('*').eq('tenant_id', 'casasgaby').eq('activo', true)
+  const { data: propiedadServicios } = await supabase.schema('hospedaje').from('propiedad_servicios').select('servicio_id').eq('propiedad_id', id).eq('disponible', true)
   const activosIds = propiedadServicios ? propiedadServicios.map((ps: any) => ps.servicio_id) : []
 
 

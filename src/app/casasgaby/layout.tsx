@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default async function CasasGabyLayout({ children }: LayoutProps<"/casasgaby">) {
   const supabase = await createClient();
-  const { data: tenant } = await supabase.from('tenants_config').select('activo').eq('id', 'casasgaby').maybeSingle() as { data: any };
+  const { data: tenant } = await supabase.schema('hospedaje').from('tenants_config').select('activo').eq('id', 'casasgaby').maybeSingle() as { data: any };
   
   if (tenant && tenant.activo === false) {
     return (
