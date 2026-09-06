@@ -295,36 +295,57 @@ export async function registrarComisionPagada(reservaId: string, montoPagado: nu
 }
 
 
-export async function registrarPagoComisionTabla(comisionId: string, montoAbono: number, metodo: string = 'transferencia') {
-  if (!montoAbono || isNaN(Number(montoAbono)) || Number(montoAbono) <= 0) {
-    throw new Error('El monto ingresado debe ser un número positivo mayor a cero.')
+export async function registrarPagoComisionTabla(comisionId: string, montoAbono: number, metodo: string = 'Transferencia') {
+  try {
+    if (!montoAbono || isNaN(Number(montoAbono)) || Number(montoAbono) <= 0) {
+      return { success: false, error: 'El monto ingresado debe ser un número positivo mayor a cero.' }
+    }
+    const supabase = await createClient()
+    const db = supabase as any
+
+    const { data: comision, error: errFetch } = await db.schema('hospedaje').from('comisiones').select('*').eq('id', comisionId).maybeSingle()
+    if (errFetch) return { success: false, error: 'Error al buscar comisión: ' + errFetch.message }
+    if (!comision) return { success: false, error: 'La comisión no existe o ya fue eliminada.' }
+
+    const saldo = Number(comision.monto_comision) - Number(comision.monto_pagado)
+    if (montoAbono > saldo + 0.5) {
+      return { success: false, error: 'El abono no puede exceder el saldo pendiente.' }
+    }
+
+    const nuevoMontoPagado = Number(comision.monto_pagado) + montoAbono
+    const estadoPago = nuevoMontoPagado >= Number(comision.monto_comision) - 0.5 ? 'pagado' : 'parcial'
+
+    const { error: errUpd } = await db.schema('hospedaje').from('comisiones').update({
+      monto_pagado: nuevoMontoPagado,
+      estado_pago: estadoPago,
+      metodo_pago_comision: metodo,
+      fecha_liquidacion: estadoPago === 'pagado' ? new Date().toISOString() : null
+    }).eq('id', comisionId)
+
+    if (errUpd) return { success: false, error: 'Error al registrar pago: ' + errUpd.message }
+
+    const { error: errTrans } = await db.schema('hospedaje').from('transacciones').insert({
+      reserva_id: comision.reserva_id,
+      cliente_id: comision.cliente_id, 
+      monto: montoAbono,
+      moneda: 'MXN',
+      tipo_cambio: 1,
+      metodo_pago: metodo,
+      concepto: 'Pago de comisión a gestor (Casas Gaby)',
+      tipo: 'egreso',
+      categoria: 'comisiones'
+    })
+
+    if (errTrans) {
+      console.error('Error insertando egreso en transacciones:', errTrans)
+    }
+
+    revalidatePath('/casasgaby/admin/finanzas')
+    return { success: true }
+  } catch (e: any) {
+    console.error('Excepción en registrarPagoComisionTabla:', e)
+    return { success: false, error: e.message || 'Error desconocido' }
   }
-  const supabase = await createClient()
-  const db = supabase as any
-
-  const { data: comision, error: errFetch } = await db.schema('hospedaje').from('comisiones').select('*').eq('id', comisionId).maybeSingle()
-  if (errFetch) throw new Error('Error al buscar comisión: ' + errFetch.message)
-  if (!comision) return { success: false, message: 'La comisión no existe o ya fue eliminada.' }
-
-  const saldo = Number(comision.monto_comision) - Number(comision.monto_pagado)
-  if (montoAbono > saldo) {
-    throw new Error('El abono no puede exceder el saldo pendiente de ' + saldo)
-  }
-
-  const nuevoMontoPagado = Number(comision.monto_pagado) + montoAbono
-  const estadoPago = nuevoMontoPagado >= Number(comision.monto_comision) ? 'liquidado' : 'parcial'
-
-  const { error: errUpd } = await db.schema('hospedaje').from('comisiones').update({
-    monto_pagado: nuevoMontoPagado,
-    estado_pago: estadoPago,
-    metodo_pago_comision: metodo,
-    fecha_liquidacion: estadoPago === 'liquidado' ? new Date().toISOString() : null
-  }).eq('id', comisionId)
-
-  if (errUpd) throw new Error('Error al registrar pago de comisión: ' + errUpd.message)
-
-  revalidatePath('/casasgaby/admin/finanzas')
-  return { success: true }
 }
 
 export async function registrarAbono(
@@ -516,12 +537,12 @@ export async function aplicarSaldoAFavorComision(comisionActivaId: string, monto
   const { data: activa } = await db.schema('hospedaje').from('comisiones').select('*').eq('id', comisionActivaId).maybeSingle()
   if (activa) {
     const nuevoMontoPagado = Number(activa.monto_pagado) + abonado
-    const estadoPago = nuevoMontoPagado >= Number(activa.monto_comision) ? 'liquidado' : 'parcial'
+    const estadoPago = nuevoMontoPagado >= Number(activa.monto_comision) ? 'pagado' : 'parcial'
     
     await db.schema('hospedaje').from('comisiones').update({
       monto_pagado: nuevoMontoPagado,
       estado_pago: estadoPago,
-      fecha_liquidacion: estadoPago === 'liquidado' ? new Date().toISOString() : null,
+      fecha_liquidacion: estadoPago === 'pagado' ? new Date().toISOString() : null,
       notas: (activa.notas ? activa.notas + ' | ' : '') + `Se aplicó saldo a favor por ${abonado}`
     }).eq('id', activa.id)
   }
@@ -907,4 +928,66 @@ export async function revertirCheckOut(reservaId: string) {
   if (error) return { success: false, error: error.message }
   revalidatePath('/casasgaby/admin/operacion')
   return { success: true }
+}
+
+export async function registrarPagoComisionLote(comisionIds: string[], metodo: string = 'Transferencia') {
+  try {
+    if (!comisionIds || comisionIds.length === 0) {
+      return { success: false, error: 'No hay comisiones seleccionadas.' }
+    }
+    const supabase = await createClient()
+    const db = supabase as any
+
+    const { data: comisiones, error: errFetch } = await db.schema('hospedaje').from('comisiones').select('*').in('id', comisionIds)
+    if (errFetch) return { success: false, error: 'Error al buscar comisiones: ' + errFetch.message }
+    if (!comisiones || comisiones.length === 0) return { success: false, error: 'Las comisiones no existen.' }
+
+    let totalPagado = 0
+    const transacciones = []
+    
+    // Preparar actualizaciones
+    for (const comision of comisiones) {
+      const saldo = Number(comision.monto_comision) - Number(comision.monto_pagado)
+      if (saldo <= 0) continue // Skip ya pagadas
+
+      const nuevoMontoPagado = Number(comision.monto_comision)
+      
+      const { error: errUpd } = await db.schema('hospedaje').from('comisiones').update({
+        monto_pagado: nuevoMontoPagado,
+        estado_pago: 'pagado',
+        metodo_pago_comision: metodo,
+        fecha_liquidacion: new Date().toISOString()
+      }).eq('id', comision.id)
+
+      if (errUpd) {
+        console.error('Error al actualizar comision', comision.id, errUpd)
+        continue
+      }
+
+      totalPagado += saldo
+
+      transacciones.push({
+        reserva_id: comision.reserva_id,
+        cliente_id: comision.cliente_id,
+        monto: saldo,
+        moneda: 'MXN',
+        tipo_cambio: 1,
+        metodo_pago: metodo,
+        concepto: 'Pago de comisión a gestor (Lote) - Reserva ' + comision.reserva_id,
+        tipo: 'egreso',
+        categoria: 'comisiones'
+      })
+    }
+
+    if (transacciones.length > 0) {
+      const { error: errTrans } = await db.schema('hospedaje').from('transacciones').insert(transacciones)
+      if (errTrans) console.error('Error insertando egresos en transacciones:', errTrans)
+    }
+
+    revalidatePath('/casasgaby/admin/finanzas')
+    return { success: true, pagadas: transacciones.length }
+  } catch (e: any) {
+    console.error('Excepción en registrarPagoComisionLote:', e)
+    return { success: false, error: e.message || 'Error desconocido' }
+  }
 }

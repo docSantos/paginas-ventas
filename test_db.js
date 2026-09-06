@@ -1,12 +1,8 @@
-const { createClient } = require('@supabase/supabase-js')
-
-const supabase = createClient(
-  'https://pcjkoqxaftgqswblwaov.supabase.co',
-  'sb_publishable_Gjcni8_Brjr63SUKu-VzVg_hDbzTz1b'
-)
-
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config({ path: '.env.local' });
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 async function run() {
-  const { data, error } = await supabase.from('propiedades').select('id, titulo').eq('tenant_id', 'casasgaby').limit(1)
-  console.log("Propiedad:", data, error)
+  const { data, error } = await supabase.schema('hospedaje').from('comisiones').select('estado_pago');
+  console.log(data);
 }
-run()
+run();
