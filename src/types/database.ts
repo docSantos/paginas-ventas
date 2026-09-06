@@ -121,6 +121,10 @@ export interface Database {
           monto_apartado: number
           estado: 'Activa' | 'Archivada'
           created_at: string
+            solicitada_en: string | null
+            confirmada_en: string | null
+            check_in_real_at: string | null
+            check_out_real_at: string | null
         }
         Insert: {
           id?: string
@@ -134,6 +138,10 @@ export interface Database {
           monto_apartado?: number
           estado?: 'Activa' | 'Archivada'
           created_at?: string
+            solicitada_en?: string | null
+            confirmada_en?: string | null
+            check_in_real_at?: string | null
+            check_out_real_at?: string | null
         }
         Update: {
           id?: string
@@ -147,6 +155,10 @@ export interface Database {
           monto_apartado?: number
           estado?: 'Activa' | 'Archivada'
           created_at?: string
+            solicitada_en?: string | null
+            confirmada_en?: string | null
+            check_in_real_at?: string | null
+            check_out_real_at?: string | null
         }
       }
     }

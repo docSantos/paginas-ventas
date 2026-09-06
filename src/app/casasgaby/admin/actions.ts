@@ -191,7 +191,9 @@ export async function aprobarSolicitud(
       estado_comision: 'pendiente',
       num_huespedes: solicitud.num_huespedes || 1,
       notas: solicitud.notas || '',
-      estado: 'Activa'
+      estado: 'Activa',
+      solicitada_en: solicitud.created_at,
+      confirmada_en: new Date().toISOString()
     })
     .select('id')
     .single()
@@ -833,3 +835,76 @@ export async function crearServicio(nombre: string, descripcion: string, precio_
   return { success: true }
 }
 
+
+export async function marcarCheckIn(reservaId: string) {
+  const supabase = await createClient()
+  const db = supabase as any
+  const { error } = await db.schema('hospedaje').from('reservas').update({ check_in_real_at: new Date().toISOString() }).eq('id', reservaId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/casasgaby/admin/operacion')
+  return { success: true }
+}
+
+export async function marcarCheckOut(reservaId: string) {
+  const supabase = await createClient()
+  const db = supabase as any
+  const { error } = await db.schema('hospedaje').from('reservas').update({ check_out_real_at: new Date().toISOString() }).eq('id', reservaId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/casasgaby/admin/operacion')
+  return { success: true }
+}
+
+export async function liquidarSaldoRecepcion(reservaId: string, monto: number, clienteId: string, metodo: string = 'Efectivo MXN', notas: string = '', moneda: string = 'MXN', tc: number = 1) {
+  monto = parseFloat(monto.toFixed(2))
+  const supabase = await createClient()
+  const db = supabase as any
+  
+  const { error: pagoErr } = await db.schema('hospedaje').from('transacciones').insert({
+    reserva_id: reservaId,
+    cliente_id: clienteId,
+    monto: monto,
+    moneda: moneda,
+    metodo_pago: metodo,
+    tipo_cambio: tc,
+    concepto: notas || 'Liquidación/Abono en recepción',
+    tipo: 'ingreso',
+    categoria: 'reserva'
+  })
+  if (pagoErr) return { success: false, error: pagoErr.message }
+
+  // Update cached total in reservas
+  const { data: trans } = await db.schema('hospedaje').from('transacciones').select('monto_mxn').eq('reserva_id', reservaId).eq('tipo', 'ingreso')
+  const totalPagado = trans?.reduce((sum: number, p: any) => sum + Number(p.monto_mxn), 0) || 0
+
+  await db.schema('hospedaje').from('reservas').update({ monto_apartado: totalPagado }).eq('id', reservaId)
+
+  revalidatePath('/casasgaby/admin/operacion')
+  return { success: true }
+}
+
+export async function checkOutAnticipado(reservaId: string, nuevoCosto: number, nuevaFechaSalida: string, marcarSalida: boolean = true) {
+  nuevoCosto = parseFloat(nuevoCosto.toFixed(2))
+  const supabase = await createClient()
+  const db = supabase as any
+  const payload: any = {
+    costo_total: nuevoCosto,
+    monto_total_acordado: nuevoCosto,
+    fecha_salida: nuevaFechaSalida
+  }
+  if (marcarSalida) {
+    payload.check_out_real_at = new Date().toISOString()
+  }
+  const { error } = await db.schema('hospedaje').from('reservas').update(payload).eq('id', reservaId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/casasgaby/admin/operacion')
+  return { success: true }
+}
+
+export async function revertirCheckOut(reservaId: string) {
+  const supabase = await createClient()
+  const db = supabase as any
+  const { error } = await db.schema('hospedaje').from('reservas').update({ check_out_real_at: null }).eq('id', reservaId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/casasgaby/admin/operacion')
+  return { success: true }
+}

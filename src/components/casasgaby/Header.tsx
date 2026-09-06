@@ -53,6 +53,13 @@ export function Header() {
           >
             ⚙️ Panel Admin
           </Link>
+          <Link
+            href="/casasgaby/admin/operacion"
+            className="block py-2 px-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
+            onClick={() => setMenuOpen(false)}
+          >
+            📋 Operación In-House
+          </Link>
         </div>
       )}
     </header>
