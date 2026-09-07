@@ -3,23 +3,34 @@ import re
 with open('implementation_plan F7.md', 'r', encoding='utf-8') as f:
     content = f.read()
 
-# Add to Sprint 7.4
-new_sprint_7_4 = """### Sprint 7.4: Libro Mayor Financiero Global (Ledger de Ingresos)
-- Refactorización absoluta de `/casasgaby/admin/finanzas/page.tsx` para admitir una arquitectura por pestañas (Tabs).
-- Pestaña primaria establecida como **Libro Mayor**.
-- **Motor de KPIs:** Tarjetas de reporte instantáneas con suma total histórica, mes actual, divisas extrajeras captadas (USD) y la proporción Efectivo vs Transferencia.
-- **Tabla Cronológica de Auditoría:** Carga e hidrata todas las transacciones `tipo='ingreso'` haciendo *JOIN* en Supabase a `reservas` (para saber el huésped) y `propiedades` (origen del ingreso).
-- **Filtros Combinados:** 
-  - Búsqueda por nombre de cliente/referencia.
-  - Selección de método de pago.
-  - Intervalos de tiempo (Mes actual, mes anterior, histórico).
-- **Liquidación Masiva de Comisiones (Bulk Payout):** Implementación de la selección múltiple con *Sticky Bar* altamente responsiva para liquidar gestores en lote, evadiendo solapamientos en UI.
-- **Sincronización Inteligente de Rutas:** Conservación del estado visual de pestañas vía `searchParams` y enrutador de Next.js, envuelto en `<Suspense>`, eliminando parpadeos (flickers) al recargar con F5.
-- **Resolución de Constraints Contables:** Aplicación obligatoria del string `'pagado'` para satisfacer la verificación `comisiones_estado_pago_check` y registro contable de egresos."""
+# Replace Sprint 7.5 content with the requested wording
+old_75 = """### Sprint 7.5: CRM Multietapa y Pipeline de Conversión
+- **Embudo CRM Ágil:** Pipeline visual dividido en 3 etapas ('Por Contactar', 'En Seguimiento' y 'Cerradas'), con persistencia sincronizada vía Supabase.
+- **Directorio de Huéspedes:** Pestaña sincronizada en URL sin parpadeos, que consolida el LTV (Lifetime Value) e historial transaccional de cada cliente.
+- **Desacople de Solicitudes:** Las cotizaciones y solicitudes de la web ya no saturan la vista principal de 'Reservas', manteniendo la operación in-house limpia.
+- **Modal de Confirmación Interactivo y Financiero:**
+  - **Selector de Moneda SVG:** Uso de banderas vectorizadas impecables (compatibles con Windows).
+  - **Conversión de Divisas Dinámica:** Recálculo exacto del anticipo requerido a la tasa de cambio ingresada en el momento.
+  - **Servicios Extras Flexibles (Acordeón):** El modal importa el catálogo de `hospedaje.catalogo_servicios`, hace match automático con lo pre-cotizado por el cliente web y permite agregar de forma reactiva más días/trayectos (calculando montos precisos al vuelo en formato acordeón fluido, libre de scrollbars nativos molestos).
+- **Prevención de Overbooking:** Motor de detección léxica cruzada `YYYY-MM-DD` que alerta visualmente en rojo (Fechas ya no disponibles) cuando las fechas solicitadas por un prospecto solapan estricta y temporalmente con una reserva confirmada activa.
+- **Migración de Postgres Constraint:** Liberación de `solicitudes_estado_check` en la base de datos maestra para permitir los nuevos estados de negocio sin colisiones internas en Postgres."""
 
-old_sprint_7_4_pattern = re.compile(r'### Sprint 7\.4: Libro Mayor Financiero Global \(Ledger de Ingresos\).*?(?=\n\n---)', re.DOTALL)
+new_75 = """### Sprint 7.5: Refactor CRM Ágil, Desacople de Solicitudes y Modal Financiero [COMPLETADO]
+- **Separación de responsabilidades:** CRM gestiona prospectos (`hospedaje.solicitudes`) y Reservas gestiona estancias confirmadas y bloqueos operativos.
+- **Embudo ágil de 3 etapas en CRM:** Por Contactar, En Seguimiento y Cerradas (Confirmada / Descartada) con migración del CHECK constraint en PostgreSQL (`solicitudes_estado_check`).
+- **Algoritmo de detección de colisiones de inventario hotelero:** Validación estricta léxica `YYYY-MM-DD` (check-out 11:00 AM vs check-in 3:00 PM sin falsos positivos).
+- **Modal de Confirmación atómico:** Soporte estricto de Efectivo / Transferencia, conversión reactiva MXN / USD (TC por defecto 16.00), edición del subtotal de hospedaje y catálogo interactivo de servicios extra con desglose de cantidades, trayectos y subtotales en tiempo real.
+- **Optimización visual de UI:** Remoción de barras de scroll dobles y componentes limpios de banderas e íconos Lucide nativos."""
 
-content = old_sprint_7_4_pattern.sub(new_sprint_7_4, content)
+content = content.replace(old_75, new_75)
+
+# Failsafe using regex if exact match fails due to encoding
+content = re.sub(
+    r'### Sprint 7\.5: CRM Multietapa y Pipeline de Conversi.*?Migraci.*?Postgres\.',
+    new_75,
+    content,
+    flags=re.DOTALL
+)
 
 with open('implementation_plan F7.md', 'w', encoding='utf-8') as f:
     f.write(content)

@@ -46,6 +46,20 @@ function getAmenidadIcon(amenidad: string): string {
 export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [], adminPhone, servicios = [] }: PropertyDetailClientProps) {
   console.log('Servicios recibidos en cliente:', servicios);
   const router = useRouter()
+  
+  // Get today's date pinned to the property's timezone (America/Cancun)
+  const getTodayCancun = (): string => {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Cancun',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(new Date()); // Outputs YYYY-MM-DD reliably
+  };
+  
+  const minLlegada = getTodayCancun();
+
   const [fechaEntrada, setFechaEntrada] = useState('')
   const [fechaSalida, setFechaSalida] = useState('')
   const [huespedes, setHuespedes] = useState(1)
@@ -411,14 +425,14 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
               type="date" 
               label="Llegada" 
               value={fechaEntrada}
-              min={new Date().toISOString().split('T')[0]}
+              min={minLlegada}
               onChange={(e) => setFechaEntrada(e.target.value)}
             />
             <Input 
               type="date" 
               label="Salida"
               value={fechaSalida}
-              min={fechaEntrada || new Date().toISOString().split('T')[0]}
+              min={fechaEntrada || minLlegada}
               onChange={(e) => setFechaSalida(e.target.value)}
             />
           </div>

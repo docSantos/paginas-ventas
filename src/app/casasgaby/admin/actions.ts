@@ -114,7 +114,7 @@ export async function aprobarSolicitud(
 
   if (errorSol) throw new Error('Error al buscar solicitud: ' + errorSol.message)
   if (!solicitud) return { success: false, message: 'La solicitud no existe o ya fue eliminada.' }
-  if (solicitud.estado !== 'Pendiente') throw new Error('La solicitud ya fue procesada')
+  if (!['Pendiente', 'nueva', 'contactado', 'cotizado', 'anticipo_pendiente'].includes(solicitud.estado)) throw new Error('La solicitud ya fue procesada o está en una etapa inválida')
 
   // VALIDACIÓN DE OVERBOOKING
   const { data: conflictos, error: errConflictos } = await db
@@ -990,4 +990,66 @@ export async function registrarPagoComisionLote(comisionIds: string[], metodo: s
     console.error('Excepción en registrarPagoComisionLote:', e)
     return { success: false, error: e.message || 'Error desconocido' }
   }
+}
+
+export async function cambiarEtapaSolicitud(solicitudId: string, nuevaEtapa: string, notas?: string) {
+  const supabase = await createClient()
+  const db = supabase as any
+  
+  // Here we could also save 'notas' if there's a column, or just update the state
+  const updateData: any = { estado: nuevaEtapa }
+  if (notas !== undefined) {
+    // If you add a 'notas' column to solicitudes in the future
+    // updateData.notas = notas
+  }
+  
+  const { error } = await db.schema('hospedaje').from('solicitudes').update(updateData).eq('id', solicitudId)
+  if (error) return { success: false, error: error.message }
+  
+  revalidatePath('/casasgaby')
+  return { success: true }
+}
+
+export async function convertirSolicitudAReserva(solicitudId: string, datosReserva: any) {
+  // Alias or wrapper for aprobarSolicitud
+  const res = await aprobarSolicitud(
+    solicitudId,
+    datosReserva.montoAcordado,
+    datosReserva.montoAnticipo,
+    datosReserva.metodo || 'transferencia_mxn',
+    datosReserva.moneda || 'MXN',
+    datosReserva.tc || 1,
+    datosReserva.extras || []
+  )
+  
+  if (res && res.success) {
+    // Force the state to 'convertida' instead of 'Aprobada' for CRM purposes
+    const supabase = await createClient()
+    const db = supabase as any
+    await db.schema('hospedaje').from('solicitudes').update({ estado: 'convertida' }).eq('id', solicitudId)
+  }
+  
+  return res
+}
+
+export async function bloquearFechas(propiedadId: string, fechaEntrada: string, fechaSalida: string, motivo: string) {
+  const supabase = await createClient()
+  const db = supabase as any
+
+  const { error } = await db.schema('hospedaje').from('reservas').insert({
+    propiedad_id: propiedadId,
+    fecha_entrada: fechaEntrada,
+    fecha_salida: fechaSalida,
+    estado: motivo === 'mantenimiento' ? 'mantenimiento' : 'bloqueo',
+    nombre_cliente: `[BLOQUEO] ${motivo}`,
+    noches: Math.max(1, Math.ceil((new Date(fechaSalida).getTime() - new Date(fechaEntrada).getTime()) / (1000 * 60 * 60 * 24))),
+    monto_total_acordado: 0,
+    monto_apartado: 0,
+    telefono: '',
+  })
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/casasgaby')
+  return { success: true }
 }

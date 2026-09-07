@@ -2,11 +2,11 @@
 
 ## Ecosistema Páginas IXA / Casas Gaby
 
-Este documento registra el estatus de la arquitectura del Sistema Central y los componentes operativos desplegados hasta el Sprint 7.4.
+Este documento registra el estatus de la arquitectura del Sistema Central y los componentes operativos desplegados hasta el Sprint 7.5.
 
 ---
 
-## ✅ Resumen de Sprints Completados (7.1 a 7.4)
+## ✅ Resumen de Sprints Completados (7.1 a 7.5)
 
 ### Sprint 7.1: Reestructuración de Base de Datos y Tipos
 - Transición a Supabase completada exitosamente.
@@ -40,13 +40,16 @@ Este documento registra el estatus de la arquitectura del Sistema Central y los 
 - **Sincronización Inteligente de Rutas:** Conservación del estado visual de pestañas vía `searchParams` y enrutador de Next.js, envuelto en `<Suspense>`, eliminando parpadeos (flickers) al recargar con F5.
 - **Resolución de Constraints Contables:** Aplicación obligatoria del string `'pagado'` para satisfacer la verificación `comisiones_estado_pago_check` y registro contable de egresos.
 
+### Sprint 7.5: Refactor CRM Ágil, Desacople de Solicitudes y Modal Financiero [COMPLETADO]
+- **Separación de responsabilidades:** CRM gestiona prospectos (`hospedaje.solicitudes`) y Reservas gestiona estancias confirmadas y bloqueos operativos.
+- **Embudo ágil de 3 etapas en CRM:** Por Contactar, En Seguimiento y Cerradas (Confirmada / Descartada) con migración del CHECK constraint en PostgreSQL (`solicitudes_estado_check`).
+- **Algoritmo de detección de colisiones de inventario hotelero:** Validación estricta léxica `YYYY-MM-DD` (check-out 11:00 AM vs check-in 3:00 PM sin falsos positivos).
+- **Modal de Confirmación atómico:** Soporte estricto de Efectivo / Transferencia, conversión reactiva MXN / USD (TC por defecto 16.00), edición del subtotal de hospedaje y catálogo interactivo de servicios extra con desglose de cantidades, trayectos y subtotales en tiempo real.
+- **Optimización visual de UI:** Remoción de barras de scroll dobles y componentes limpios de banderas e íconos Lucide nativos.
+
 ---
 
 ## 🚀 Próximos Pasos (Hoja de Ruta Inmediata)
-
-### Sprint 7.5: CRM Multietapa y Contactos
-1. Clasificar de manera estricta los niveles de embudo: `Lead -> Prospecto -> Cliente`.
-2. Crear un panel "Directorio de Clientes" donde se aprecie el total de reservas y LTV (Life-Time Value) de cada viajero, así como un espacio para notas operativas o preferencias.
 
 ### Sprint 7.6: Reorganización del Tablero con IA y Consola Central
 1. Preparar la arquitectura UI para el salto visual (Sonnet) y separar claramente las "Solicitudes Pendientes" de las "Reservas Confirmadas Futuras".

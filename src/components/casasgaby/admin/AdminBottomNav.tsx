@@ -10,11 +10,11 @@ export function AdminBottomNav() {
   const pathname = usePathname()
   const supabase = createClient()
 
-  const navItems = [
+    const navItems = [
     { href: '/casasgaby/admin', label: 'Propiedades', icon: LayoutDashboard },
+    { href: '/casasgaby/admin/clientes', label: 'CRM', icon: Users },
     { href: '/casasgaby/admin/reservas', label: 'Reservas', icon: CalendarDays },
-    { href: '/casasgaby/admin/operacion', label: 'Recepción', icon: ClipboardCheck },
-    { href: '/casasgaby/admin/clientes', label: 'Clientes', icon: Users },
+    { href: '/casasgaby/admin/operacion', label: 'In-House', icon: ClipboardCheck },
     { href: '/casasgaby/admin/finanzas', label: 'Finanzas', icon: TrendingUp },
     { href: '/casasgaby/admin/ajustes', label: 'Ajustes', icon: Settings },
   ]

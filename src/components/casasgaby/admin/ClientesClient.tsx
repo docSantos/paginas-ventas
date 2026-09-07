@@ -1,7 +1,8 @@
-﻿'use client'
+'use client'
 
-import { useState } from 'react'
-import { Search, User, Phone, Mail, Calendar, TrendingUp, Edit2, Merge, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Search, User, Phone, Mail, Calendar, TrendingUp, Edit2, Merge, ChevronDown, ChevronUp , ArrowRightLeft, Banknote , Coins } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import PhoneInputField from '@/components/PhoneInputField'
 import { formatPrice, formatDateEs, formatPhoneWithFlag, buildWaUrl, formatPhoneWithFlagObj } from '@/lib/utils'
@@ -43,7 +44,19 @@ interface Cliente {
   reservas?: Reserva[]
 }
 
-export default function ClientesClient({ clientes }: { clientes: Cliente[] }) {
+export default function ClientesClient({ clientes, solicitudes = [], reservasConfirmadas = [], servicios = [] }: { clientes: Cliente[], solicitudes?: any[], reservasConfirmadas?: any[], servicios?: any[] }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<'crm'|'directorio'>(() => {
+    const tab = searchParams.get('tab')
+    return (tab === 'directorio') ? 'directorio' : 'crm'
+  })
+
+  const handleTabChange = (tab: 'crm'|'directorio') => {
+    setActiveTab(tab)
+    router.replace(`?tab=${tab}`, { scroll: false })
+  }
+
   const [searchTerm, setSearchTerm] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -148,7 +161,36 @@ export default function ClientesClient({ clientes }: { clientes: Cliente[] }) {
   }
 
   return (
-    <div className="pb-24">
+    <div className="pb-24 space-y-4">
+      <div className="flex flex-wrap border-b border-gray-200 gap-y-2 mb-4 bg-white sticky top-0 z-20 px-4">
+        <button
+          onClick={() => handleTabChange('crm')}
+          className={`py-3 px-4 sm:px-6 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'crm'
+              ? 'border-teal-500 text-teal-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          Embudo CRM / Prospectos
+        </button>
+        <button
+          onClick={() => handleTabChange('directorio')}
+          className={`py-3 px-4 sm:px-6 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'directorio'
+              ? 'border-teal-500 text-teal-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          Directorio de Huéspedes
+        </button>
+      </div>
+
+      {activeTab === 'crm' && (
+        <CrmPipeline solicitudes={solicitudes} reservasConfirmadas={reservasConfirmadas} servicios={servicios} />
+      )}
+
+      {activeTab === 'directorio' && (
+        <div className="space-y-6">
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-md mx-auto px-4 py-4">
           <h1 className="text-xl font-bold text-gray-900 mb-4">Directorio de Clientes</h1>
@@ -383,6 +425,473 @@ export default function ClientesClient({ clientes }: { clientes: Cliente[] }) {
           </div>
         </DialogContent>
       </Dialog>
+        </div>
+      )}
     </div>
+  )
+}
+
+
+function CrmPipeline({ solicitudes, reservasConfirmadas = [], servicios = [] }: { solicitudes: any[], reservasConfirmadas?: any[], servicios?: any[] }) {
+  const stages = [
+    { id: 'por_contactar', title: 'Por Contactar', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+    { id: 'en_seguimiento', title: 'En Seguimiento', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+    { id: 'cerradas', title: 'Cerradas', color: 'bg-gray-100 text-gray-600 border-gray-200' },
+  ]
+
+      // Normalize states to 3 CRM stages
+    const normalizedSolicitudes = solicitudes.map(s => {
+      let estado_crm = 'por_contactar';
+      if (s.estado === 'en_seguimiento') estado_crm = 'en_seguimiento';
+      else if (s.estado === 'confirmada' || s.estado === 'descartada') estado_crm = 'cerradas';
+      return { ...s, estado_crm };
+    })
+
+      // Detect collision: does a confirmed reservation overlap this solicitud's dates?
+    const tieneColision = (sol: any): boolean => {
+      // Only show warning for active stages (por_contactar, en_seguimiento)
+      if (sol.estado_crm === 'cerradas' || ['confirmada', 'convertida', 'aprobada', 'descartada', 'rechazada'].includes(sol.estado)) {
+        return false;
+      }
+      
+      return reservasConfirmadas.some(r => {
+        if (r.propiedad_id !== sol.propiedad_id) return false;
+        // Exclude the reservation that might belong to this same request
+        if (r.id === sol.reserva_id || r.solicitud_id === sol.id) return false;
+        
+        // Strict string comparison YYYY-MM-DD prevents timezone parsing offsets
+        const reservaLlegada = r.fecha_entrada.split('T')[0];
+        const reservaSalida = r.fecha_salida.split('T')[0];
+        const solicitudLlegada = sol.fecha_entrada.split('T')[0];
+        const solicitudSalida = sol.fecha_salida.split('T')[0];
+        
+        const hayCruce = (solicitudLlegada < reservaSalida) && (solicitudSalida > reservaLlegada);
+        return hayCruce;
+      })
+    }
+
+  const [activeStage, setActiveStage] = useState('por_contactar')
+  const [isMobile, setIsMobile] = useState(false)
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean, solicitud: any | null }>({ open: false, solicitud: null })
+  const [confMoneda, setConfMoneda] = useState('MXN')
+  const [confTc, setConfTc] = useState('16.00')
+  const [confMetodo, setConfMetodo] = useState('Transferencia')
+  const [confAnticipo, setConfAnticipo] = useState('')
+  const [confHospedaje, setConfHospedaje] = useState('')
+  const [confExtras, setConfExtras] = useState<Record<string, any>>({})
+  const [confReferencia, setConfReferencia] = useState('')
+  const [confSaving, setConfSaving] = useState(false)
+  const [confError, setConfError] = useState('')
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const changeStage = async (id: string, stage: string) => {
+    try {
+      const { cambiarEtapaSolicitud } = await import('@/app/casasgaby/admin/actions')
+      const res = await cambiarEtapaSolicitud(id, stage)
+      if (!res.success) alert(res.error)
+    } catch (e: any) {
+      alert('Error: ' + e.message)
+    }
+  }
+
+  const handleWhatsAppAndAdvance = async (sol: any) => {
+    const waUrl = buildWaUrl(sol.codigo_pais || '+52', sol.telefono, `Hola ${sol.nombre_cliente}, te escribo de Casas Gaby respecto a tu solicitud del ${formatDateEs(sol.fecha_entrada)}.`)
+    window.open(waUrl, '_blank')
+    // Auto-advance to En Seguimiento if still Por Contactar
+    if (sol.estado_crm === 'por_contactar') {
+      await changeStage(sol.id, 'en_seguimiento')
+    }
+  }
+
+  const getExtrasTotal = (state: Record<string, any>) => {
+    return Object.values(state).reduce((acc: number, s: any) => {
+      if (!s.activo) return acc;
+      if (s.tipo_tarifa === 'por_trayecto') {
+        const count = (s.ida ? 1 : 0) + (s.vuelta ? 1 : 0);
+        return acc + (Number(s.precio_base) * count);
+      }
+      return acc + (Number(s.precio_base) * (s.qty || 1));
+    }, 0);
+  }
+
+  const handleConfirmarReserva = async () => {
+    if (!confirmModal.solicitud) return
+    const anticipo = parseFloat(confAnticipo || '0')
+    const tc = parseFloat(confTc || '1')
+    if (!confAnticipo || isNaN(anticipo)) return setConfError('Ingresa el monto del anticipo.')
+    setConfSaving(true)
+    setConfError('')
+    try {
+      const { aprobarSolicitud } = await import('@/app/casasgaby/admin/actions')
+      const sol = confirmModal.solicitud
+      const extrasAmount = getExtrasTotal(confExtras)
+      const hospedajeAmount = parseFloat(confHospedaje || '0')
+      const finalTotal = hospedajeAmount + extrasAmount
+      
+      const finalExtrasList = Object.values(confExtras).filter(e => e.activo).map(e => {
+        let finalQty = e.qty;
+        let finalName = e.nombre;
+        if (e.tipo_tarifa === 'por_trayecto') {
+          finalQty = (e.ida ? 1 : 0) + (e.vuelta ? 1 : 0);
+          const baseName = e.nombre.replace(/\s*\(Ida.*?\)/g, '').trim();
+          if (e.ida && e.vuelta) finalName = baseName + ' (Ida y Vuelta)';
+          else if (e.ida) finalName = baseName + ' (Ida)';
+          else if (e.vuelta) finalName = baseName + ' (Vuelta)';
+        }
+        return {
+          id: e.id,
+          nombre: finalName,
+          qty: finalQty,
+          precio_base: e.precio_base,
+          tipo_tarifa: e.tipo_tarifa
+        }
+      }).filter(e => e.qty > 0);
+
+      const res = await aprobarSolicitud(
+        sol.id, finalTotal, anticipo,
+        confMetodo === 'Transferencia' ? 'transferencia_mxn' : 'efectivo_mxn',
+        confMoneda, tc, finalExtrasList
+      )
+      if (res && !res.success) return setConfError(res.message || 'Error al confirmar.')
+      setConfirmModal({ open: false, solicitud: null })
+      setConfAnticipo('')
+      setConfReferencia('')
+    } catch (e: any) {
+      setConfError(e.message)
+    } finally {
+      setConfSaving(false)
+    }
+  }
+
+  const extrasModalTotal = getExtrasTotal(confExtras);
+  const hospedajeModalTotal = parseFloat(confHospedaje || '0');
+  const montoPrevisto = hospedajeModalTotal + extrasModalTotal;
+  
+  // Reactively calculate suggested anticipo if they edit the USD TC or change currency
+  useEffect(() => {
+    if (!confirmModal.open) return;
+    const baseSugerido = montoPrevisto * 0.5;
+    if (confMoneda === 'USD') {
+      const tc = parseFloat(confTc || '16.00');
+      setConfAnticipo((baseSugerido / tc).toFixed(2));
+    } else {
+      setConfAnticipo(baseSugerido.toFixed(2));
+    }
+  }, [montoPrevisto, confMoneda, confTc, confirmModal.open]);
+
+  const anticipoMXN = confMoneda === 'USD' ? (parseFloat(confAnticipo || '0') * parseFloat(confTc || '16.00')) : parseFloat(confAnticipo || '0');
+
+
+  const renderCard = (s: any, stageId: string) => {
+    const colision = tieneColision(s)
+    const isCerrada = stageId === 'cerradas'
+    const esConvertida = s.estado === 'confirmada' || ['convertida', 'aprobada', 'Aprobada'].includes(s.estado)
+    const esDescartada = ['descartada', 'rechazada', 'Rechazada'].includes(s.estado)
+
+    return (
+      <div
+        key={s.id}
+        className={`bg-white p-3 rounded-xl border shadow-sm flex flex-col gap-2 transition-all hover:shadow-md ${colision ? 'border-red-400 bg-red-50/50' : 'border-gray-200'}`}
+      >
+        {colision && (
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-red-700 bg-red-100 border border-red-200 rounded-lg px-2 py-1">
+            ⚠️ Fechas ya no disponibles (Cruce con reserva confirmada)
+          </div>
+        )}
+        <div className="flex justify-between items-start">
+          <h4 className="font-bold text-gray-900 text-sm leading-tight">{s.nombre_cliente || s.nombre_completo}</h4>
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="text-xs text-gray-500">{formatDateEs(s.fecha_entrada)}</span>
+            {isCerrada && (
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${esConvertida ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+                {esConvertida ? '✓ Confirmada' : esDescartada ? 'Descartada' : 'Cerrada'}
+              </span>
+            )}
+          </div>
+        </div>
+        <p className="text-xs text-teal-700 font-medium">{s.propiedades?.titulo}</p>
+        <p className="text-xs text-gray-600 font-bold">{formatPrice(s.costo_total || 0)}</p>
+        <p className="text-xs text-gray-400">{formatDateEs(s.fecha_entrada)} → {formatDateEs(s.fecha_salida)} · {s.noches || '?'} noches</p>
+
+        <div className="flex flex-wrap gap-2 mt-1 pt-2 border-t">
+            {!isCerrada && (<button
+              onClick={() => handleWhatsAppAndAdvance(s)}
+              className="flex-1 bg-green-50 text-green-700 border border-green-200 text-xs py-1.5 rounded-md text-center hover:bg-green-100 font-medium transition-colors"
+            >
+              WhatsApp {stageId === 'por_contactar' ? '→ Seguimiento' : ''}
+            </button>)}
+                          <select
+                className="flex-1 text-xs border rounded-md px-1 py-1.5 bg-gray-50 focus:ring-1 focus:ring-teal-500"
+                value={s.estado === 'descartada' ? 'descartada' : s.estado === 'confirmada' ? 'confirmada' : s.estado_crm}
+                onChange={(e) => changeStage(s.id, e.target.value)}
+              >
+                <option value="por_contactar">Por Contactar</option>
+                <option value="en_seguimiento">En Seguimiento</option>
+                <option value="descartada">Descartar</option>
+                {s.estado === 'confirmada' && <option value="confirmada" disabled>Confirmada</option>}
+              </select>
+          </div>
+
+        {!isCerrada && !colision && (
+          <Button
+            size="sm"
+            className="w-full mt-1 bg-teal-600 hover:bg-teal-700 text-white h-8 text-xs font-semibold"
+            onClick={() => {
+              const initExtras: Record<string, any> = {};
+              if (Array.isArray(s.servicios_extra)) {
+                s.servicios_extra.forEach((e: any) => {
+                  let ida = false;
+                  let vuelta = false;
+                  let qty = e.qty || 1;
+                  if (e.tipo_tarifa === 'por_trayecto') {
+                    if (e.nombre?.includes('Ida y Vuelta')) { ida = true; vuelta = true; qty = 2; }
+                    else if (e.nombre?.includes('Ida')) { ida = true; qty = 1; }
+                    else if (e.nombre?.includes('Vuelta')) { vuelta = true; qty = 1; }
+                    else { ida = true; vuelta = true; qty = 2; } // fallback
+                  }
+                  initExtras[e.id] = { activo: true, id: e.id, nombre: e.nombre, precio_base: e.precio_base, tipo_tarifa: e.tipo_tarifa, qty, ida, vuelta };
+                });
+              }
+              const eTotal = Object.values(initExtras).reduce((acc: number, s: any) => acc + (s.precio_base * s.qty), 0);
+              const totalBase = parseFloat(s.costo_total || s.monto_total_acordado || '0');
+              const hBase = Math.max(0, totalBase - eTotal);
+              
+              setConfExtras(initExtras);
+              setConfHospedaje(hBase.toFixed(2));
+              setConfirmModal({ open: true, solicitud: s })
+              setConfMoneda('MXN')
+              setConfTc('16.00')
+              setConfMetodo('Transferencia')
+              setConfError('')
+            }}
+          >
+            Confirmar Reserva
+          </Button>
+        )}
+      </div>
+    )
+  }
+
+  const renderCards = (stageId: string) => {
+    const items = normalizedSolicitudes.filter(s => s.estado_crm === stageId)
+    if (items.length === 0) return <div className="text-sm text-gray-400 p-4 text-center italic">Vacío</div>
+    return items.map(s => renderCard(s, stageId))
+  }
+
+  return (
+    <>
+      {isMobile ? (
+        <div className="space-y-4 px-4 pb-20">
+          <div className="flex overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden gap-2 pb-2 scrollbar-hide -mx-4 px-4">
+            {stages.map(st => (
+              <button
+                key={st.id}
+                onClick={() => setActiveStage(st.id)}
+                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${activeStage === st.id ? st.color + ' ring-1 ring-black/10 shadow-sm' : 'bg-white text-gray-600 border-gray-200'}`}
+              >
+                {st.title} ({normalizedSolicitudes.filter(s => s.estado_crm === st.id).length})
+              </button>
+            ))}
+          </div>
+          <div className="bg-gray-50/50 rounded-2xl min-h-[400px] border border-gray-200/50 p-2 space-y-3">
+            {renderCards(activeStage)}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pb-6 px-4 min-h-[600px]">
+          {stages.map(st => (
+            <div key={st.id} className="flex-none w-80 flex flex-col bg-gray-50/50 rounded-2xl border border-gray-200/60 overflow-hidden shadow-sm">
+              <div className={`p-3 border-b border-black/5 font-bold text-sm flex justify-between items-center ${st.color}`}>
+                <span>{st.title}</span>
+                <span className="bg-white/50 px-2 py-0.5 rounded-full text-xs font-black shadow-sm">
+                  {normalizedSolicitudes.filter(s => s.estado_crm === st.id).length}
+                </span>
+              </div>
+              <div className="p-3 flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden space-y-3">
+                {renderCards(st.id)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal: Confirmar Reserva desde CRM */}
+      <Dialog open={confirmModal.open} onOpenChange={(o) => setConfirmModal(p => ({ ...p, open: o }))}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <DialogHeader>
+            <DialogTitle>Confirmar Reserva</DialogTitle>
+          </DialogHeader>
+          {confirmModal.solicitud && (
+            <div className="space-y-4 py-2">
+              <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 text-sm space-y-2">
+                <div>
+                  <p className="font-bold text-teal-800">{confirmModal.solicitud.nombre_cliente}</p>
+                  <p className="text-teal-700">{confirmModal.solicitud.propiedades?.titulo}</p>
+                  <p className="text-gray-600">{formatDateEs(confirmModal.solicitud.fecha_entrada)} → {formatDateEs(confirmModal.solicitud.fecha_salida)} · {confirmModal.solicitud.noches} noches</p>
+                </div>
+                
+                <div className="border-t border-teal-200/60 pt-2">
+                  <p className="font-semibold text-teal-900 mb-1">Catálogo de Servicios ({servicios.length} disponibles):</p>
+                    {servicios.length > 0 ? (
+                      <div className="space-y-2">
+                      {servicios.map((srv: any) => {
+                        const state = confExtras[srv.id] || { activo: false, id: srv.id, nombre: srv.nombre, precio_base: srv.precio_base, tipo_tarifa: srv.tipo_tarifa, qty: 1, ida: false, vuelta: false };
+                        const isSel = state.activo;
+                        
+                        return (
+                          <div key={srv.id} className={`p-2 rounded-lg border transition-all duration-300 ${isSel ? 'bg-teal-50/50 border-teal-200' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}>
+                            <div className="flex items-start gap-2">
+                              <input 
+                                type="checkbox" 
+                                className="mt-1 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                                checked={isSel}
+                                onChange={(e) => {
+                                  const activo = e.target.checked;
+                                  setConfExtras({ ...confExtras, [srv.id]: { ...state, activo, ida: activo ? (state.ida || true) : state.ida } });
+                                }}
+                              />
+                              <div className="flex-1">
+                                <div className="flex justify-between items-start">
+                                  <span className={`text-sm font-medium leading-tight ${!isSel ? 'text-gray-500' : 'text-gray-900'}`}>{srv.nombre}</span>
+                                  <span className={`text-xs font-bold whitespace-nowrap ml-2 ${!isSel ? 'text-gray-400' : 'text-teal-700'}`}>
+                                    +{formatPrice(isSel ? (srv.tipo_tarifa === 'por_trayecto' ? srv.precio_base * ((state.ida ? 1 : 0) + (state.vuelta ? 1 : 0)) : srv.precio_base * state.qty) : srv.precio_base)}
+                                  </span>
+                                </div>
+                                {isSel && srv.tipo_tarifa !== 'fijo' && (
+                                  <div className="mt-1.5 flex items-center gap-2">
+                                    {srv.tipo_tarifa === 'por_trayecto' ? (
+                                      <div className="flex flex-col gap-1 w-full mt-1">
+                                        <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                                          <input type="checkbox" className="rounded text-teal-600 w-3 h-3" checked={!!state.ida}
+                                            onChange={(e) => setConfExtras({...confExtras, [srv.id]: {...state, ida: e.target.checked, activo: e.target.checked || state.vuelta}})} />
+                                          Ida (Apto &rarr; Casa)
+                                        </label>
+                                        <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                                          <input type="checkbox" className="rounded text-teal-600 w-3 h-3" checked={!!state.vuelta}
+                                            onChange={(e) => setConfExtras({...confExtras, [srv.id]: {...state, vuelta: e.target.checked, activo: state.ida || e.target.checked}})} />
+                                          Vuelta (Casa &rarr; Apto)
+                                        </label>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <span className="text-xs text-gray-600">
+                                          {srv.nombre.toLowerCase().includes('auto') ? 'Días:' : srv.nombre.toLowerCase().includes('distancia') || srv.nombre.toLowerCase().includes('especial') ? 'Distancia (km):' : 'Personas / Piezas:'}
+                                        </span>
+                                        <input 
+                                          type="number" min="1" value={state.qty}
+                                          onChange={(e) => setConfExtras({...confExtras, [srv.id]: {...state, qty: parseInt(e.target.value)||1}})}
+                                          className="w-16 h-6 text-xs rounded border-gray-300 px-2 bg-white"
+                                        />
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 italic">No hay servicios en el catálogo</p>
+                  )}
+                </div>
+
+                <div className="border-t border-teal-200/60 pt-2 grid grid-cols-2 gap-2 items-center">
+                  <label className="font-medium text-gray-700 text-xs">Subtotal Hospedaje (Editable)</label>
+                  <Input type="number" value={confHospedaje} onChange={e => setConfHospedaje(e.target.value)} className="h-8 text-sm" />
+                  
+                  <span className="font-medium text-gray-700 text-xs">Subtotal Extras</span>
+                  <span className="text-sm font-semibold">{formatPrice(extrasModalTotal)}</span>
+                </div>
+                
+                <div className="bg-teal-100/50 p-2 rounded -mx-1 mt-1 flex justify-between items-center">
+                  <span className="font-bold text-teal-900">Total Acordado:</span>
+                  <span className="font-black text-teal-900 text-base">{formatPrice(montoPrevisto)}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium block mb-1">Moneda del anticipo</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setConfMoneda('MXN')}
+                      className={`flex-1 flex items-center justify-center py-2 text-sm rounded-lg border font-medium transition-colors ${confMoneda === 'MXN' ? 'bg-gray-100 border-gray-400' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                    >
+                      <svg viewBox="0 0 64 64" className="w-4 h-4 mr-1.5"><path fill="#006341" d="M0 16h21.3v32H0z"/><path fill="#fff" d="M21.3 16h21.4v32H21.3z"/><path fill="#c8102e" d="M42.7 16H64v32H42.7z"/><circle cx="32" cy="32" r="4.5" fill="#693d25"/><path fill="#006341" d="M30 34c1.1 1.5 3.3 1.5 4 0l-2-2-2 2z"/></svg> MXN
+                    </button>
+                    <button
+                      onClick={() => setConfMoneda('USD')}
+                      className={`flex-1 flex items-center justify-center py-2 text-sm rounded-lg border font-medium transition-colors ${confMoneda === 'USD' ? 'bg-gray-100 border-gray-400' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                    >
+                      <svg viewBox="0 0 64 64" className="w-4 h-4 mr-1.5"><path fill="#fff" d="M0 16h64v32H0z"/><path fill="#bd3d44" d="M0 18.5h64v2.4H0zm0 4.9h64v2.4H0zm0 4.9h64v2.4H0zm0 4.9h64v2.4H0zm0 4.9h64v2.4H0zm0 4.9h64v2.4H0z"/><path fill="#192f5d" d="M0 16h29.3v17H0z"/><path fill="#fff" d="M3 18l.8 2.4H6l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4h2.2zm4.7 0l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4h2.2zm4.6 0l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4H13zm4.7 0l.8 2.4h2.2L19 21.8l.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4h2.2zm4.6 0l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4h2.2zm-16.3 3l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4h2.2zm4.7 0l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4H13zm4.6 0l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4h2.2zm4.7 0l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4h2.2zm-16.3 3l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4H8.3zm4.7 0l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4H13zm4.6 0l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4h2.2zm4.7 0l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4h2.2zm-16.3 3l.8 2.4H8l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4h2.2zm4.7 0l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4H13zm4.6 0l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4h2.2zm4.7 0l.8 2.4h2.2l-1.8 1.4.7 2.3-1.9-1.4-1.9 1.4.7-2.3-1.8-1.4h2.2z"/></svg> USD
+                    </button>
+                  </div>
+                </div>
+                {confMoneda === 'USD' && (
+                  <div>
+                    <label className="text-sm font-medium block mb-1">Tipo de cambio (1 USD =)</label>
+                    <Input type="number" value={confTc} onChange={e => setConfTc(e.target.value)} placeholder="17.00" />
+                  </div>
+                )}
+              </div>
+
+              {confMoneda === 'USD' && parseFloat(confAnticipo) > 0 && (
+                <p className="text-xs text-gray-500 bg-gray-50 border rounded-lg px-3 py-2">
+                  Equivalente: <strong>{formatPrice(anticipoMXN)}</strong> MXN al tipo de cambio {confTc}
+                </p>
+              )}
+
+              <div>
+                <label className="text-sm font-medium block mb-1">Método de pago</label>
+                <div className="flex gap-2">
+                  {['Efectivo', 'Transferencia'].map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setConfMetodo(m)}
+                      className={`flex-1 inline-flex items-center justify-center py-2 text-sm rounded-lg border font-medium transition-colors ${confMetodo === m ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-700 border-gray-300 hover:border-teal-400'}`}
+                    >
+                      {m === 'Efectivo' ? <Banknote className="w-4 h-4 mr-1.5" /> : <ArrowRightLeft className="w-4 h-4 mr-1.5" />}
+                      <span>{m}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium block mb-1">Monto anticipo ({confMoneda})</label>
+                  <Input type="number" value={confAnticipo} onChange={e => setConfAnticipo(e.target.value)} placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-1">Referencia / Folio</label>
+                  <Input value={confReferencia} onChange={e => setConfReferencia(e.target.value)} placeholder="Opcional" />
+                </div>
+              </div>
+
+              {confError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{confError}</p>}
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setConfirmModal({ open: false, solicitud: null })}>Cancelar</Button>
+                <Button
+                  className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
+                  disabled={confSaving}
+                  onClick={handleConfirmarReserva}
+                >
+                  {confSaving ? 'Guardando...' : '✓ Confirmar y Registrar'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

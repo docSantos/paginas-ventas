@@ -70,6 +70,11 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
   const [pagosHistory, setPagosHistory] = useState<Record<string, any[]>>({})
   const supabase = createClient()
 
+  // Bloqueo por mantenimiento
+  const [bloqueoModal, setBloqueoModal] = useState({
+    open: false, propiedadId: '', fechaEntrada: '', fechaSalida: '', motivo: 'mantenimiento', error: '', saving: false
+  })
+
   useEffect(() => {
     const isUSD = metodoPago.includes('usd');
     setMoneda(isUSD ? 'USD' : 'MXN');
@@ -314,65 +319,22 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
 
   return (
     <div className="space-y-8">
-      {/* Solicitudes Pendientes */}
-      <div>
-        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-          <Clock className="w-5 h-5 text-amber-500" />
-          Nuevas Solicitudes ({pendientes.length})
-        </h2>
-        
-        <div className="grid gap-4">
-          {pendientes.length === 0 ? (
-            <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-500">
-              No hay solicitudes pendientes en este momento.
-            </div>
-          ) : (
-            pendientes.map(solicitud => {
-              const tieneConflicto = tieneConflictoEntreSolicitudes(solicitud, pendientes);
-              return (
-              <div key={solicitud.id} className={`p-5 rounded-xl border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors ${tieneConflicto ? 'border-red-400 bg-red-50/70 hover:bg-red-50' : 'bg-white border-gray-200'}`}>
-                <div>
-                  <h3 className="font-bold text-gray-900 flex items-center gap-2 flex-wrap">
-                    {solicitud.nombre_cliente}
-                    {tieneConflicto && (
-                      <span className="bg-red-100 text-red-700 text-[10px] sm:text-xs font-semibold px-2.5 py-0.5 sm:py-1 rounded-full border border-red-200 inline-flex items-center gap-1">
-                        ⚠️ Conflicto
-                      </span>
-                    )}
-                    <a 
-                      href={buildWaUrl((solicitud as any).codigo_pais, solicitud.telefono, `Hola ${solicitud.nombre_cliente}, te escribo de Casas Gaby sobre tu solicitud de reserva.`)}
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="inline-flex items-center text-xs font-medium bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 px-2 py-1 rounded-full transition-colors"
-                    >
-                      WhatsApp
-                    </a>
-                  </h3>
-                  <div className="text-sm text-gray-600 mt-1 flex flex-col gap-0.5">
-                    <span className="font-medium text-teal-700">{(solicitud as any).propiedades?.titulo}</span>
-                    <span>{formatPhoneWithFlagObj((solicitud as any).codigo_pais, solicitud.telefono)}</span>
-                      {((solicitud as any).email || (solicitud as any).email_cliente) && (
-                        <a href={`mailto:${(solicitud as any).email || (solicitud as any).email_cliente}`} className="hover:text-teal-600 transition-colors flex items-center gap-1">
-                          ✉️ {(solicitud as any).email || (solicitud as any).email_cliente}
-                        </a>
-                      )}
-                    <span>Fechas: {formatDateEs(solicitud.fecha_entrada)} al {formatDateEs(solicitud.fecha_salida)} ({solicitud.noches} noches)</span>
-                    <span>Total sugerido: {formatPrice(solicitud.costo_total || 0)}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-2 md:mt-0">
-                  <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={async () => await rechazarSolicitud(solicitud.id)}>
-                    <XCircle className="w-4 h-4 mr-2" /> Rechazar
-                  </Button>
-                  <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={() => handleAbrirAprobar(solicitud)}>
-                    <CheckCircle className="w-4 h-4 mr-2" /> Aprobar y Cobrar
-                  </Button>
-                </div>
-              </div>
-            )
-          })
-          )}
+      {/* Header + Bloquear Fechas */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Reservas Confirmadas</h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            Gestión de estancias activas. Las solicitudes nuevas viven en el{' '}
+            <a href="/casasgaby/admin/clientes?tab=crm" className="text-teal-600 font-medium hover:underline">CRM</a>.
+          </p>
         </div>
+        <Button
+          variant="outline"
+          className="border-amber-300 text-amber-700 hover:bg-amber-50 shrink-0"
+          onClick={() => setBloqueoModal({ open: true, propiedadId: '', fechaEntrada: '', fechaSalida: '', motivo: 'mantenimiento', error: '', saving: false })}
+        >
+          <CalendarIcon className="w-4 h-4 mr-2" /> Bloquear Fechas
+        </Button>
       </div>
 
       {/* Reservas Activas */}
@@ -1068,6 +1030,75 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
             <div className="flex justify-end gap-2 mt-4">
               <Button variant="outline" onClick={() => setAjusteModal({ ...ajusteModal, open: false })}>Cancelar</Button>
               <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={handleAgregarAjuste}>Agregar Ajuste</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Bloquear Fechas por Mantenimiento */}
+      <Dialog open={bloqueoModal.open} onOpenChange={(o) => setBloqueoModal({ ...bloqueoModal, open: o })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bloquear Fechas de Propiedad</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium block mb-1">Propiedad</label>
+              <select
+                className="w-full border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-500"
+                value={bloqueoModal.propiedadId}
+                onChange={e => setBloqueoModal({ ...bloqueoModal, propiedadId: e.target.value })}
+              >
+                <option value="">-- Seleccionar propiedad --</option>
+                {Array.from(new Map(reservas.map((r: any) => [r.propiedades?.titulo, r.propiedad_id])).entries()).map(([titulo, pid]) => (
+                  <option key={String(pid)} value={String(pid)}>{titulo}</option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium block mb-1">Fecha Inicio</label>
+                <Input type="date" value={bloqueoModal.fechaEntrada} onChange={e => setBloqueoModal({ ...bloqueoModal, fechaEntrada: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Fecha Fin</label>
+                <Input type="date" value={bloqueoModal.fechaSalida} min={bloqueoModal.fechaEntrada} onChange={e => setBloqueoModal({ ...bloqueoModal, fechaSalida: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1">Motivo</label>
+              <select
+                className="w-full border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-500"
+                value={bloqueoModal.motivo}
+                onChange={e => setBloqueoModal({ ...bloqueoModal, motivo: e.target.value })}
+              >
+                <option value="mantenimiento">🔧 Mantenimiento</option>
+                <option value="housekeeping">🧹 Housekeeping / Limpieza profunda</option>
+                <option value="uso_dueno">🏡 Uso del dueño</option>
+              </select>
+            </div>
+            {bloqueoModal.error && <p className="text-sm text-red-600">{bloqueoModal.error}</p>}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setBloqueoModal({ open: false, propiedadId: '', fechaEntrada: '', fechaSalida: '', motivo: 'mantenimiento', error: '', saving: false })}>Cancelar</Button>
+              <Button
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+                disabled={bloqueoModal.saving}
+                onClick={async () => {
+                  const { propiedadId, fechaEntrada: fe, fechaSalida: fs, motivo } = bloqueoModal
+                  if (!propiedadId || !fe || !fs) return setBloqueoModal(b => ({ ...b, error: 'Todos los campos son obligatorios.' }))
+                  setBloqueoModal(b => ({ ...b, saving: true, error: '' }))
+                  try {
+                    const { bloquearFechas } = await import('@/app/casasgaby/admin/actions')
+                    const res = await bloquearFechas(propiedadId, fe, fs, motivo)
+                    if (!res.success) return setBloqueoModal(b => ({ ...b, saving: false, error: res.error || 'Error al bloquear.' }))
+                    setBloqueoModal({ open: false, propiedadId: '', fechaEntrada: '', fechaSalida: '', motivo: 'mantenimiento', error: '', saving: false })
+                  } catch (e: any) {
+                    setBloqueoModal(b => ({ ...b, saving: false, error: e.message }))
+                  }
+                }}
+              >
+                {bloqueoModal.saving ? 'Guardando...' : 'Confirmar Bloqueo'}
+              </Button>
             </div>
           </div>
         </DialogContent>
