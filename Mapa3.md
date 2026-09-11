@@ -98,7 +98,13 @@ Este documento establece la arquitectura completa, el estado actual de los módu
   2. Reservas confirmadas (programadas a futuro).
 - **Acción de Check-in Anticipado:** Botón "Adelantar Check-in" en reservas confirmadas para registrar llegadas previas a la fecha formal, actualizando `check_in_real_at` y moviendo la reserva de inmediato a la sección operativa In-House.
 
-### Sprint 7.7: Cimientos de la Consola Central y Preparación para Despliegue
+### Sprint 7.7: Reprogramación Trazable, Control In-House y Corrección de Comisiones
+- **Auditoría de Modificaciones:** Modificación controlada de estancias con validación antibloqueo en calendario y registro histórico inmutable (timestamp y motivo) de cada cambio en `historial_modificaciones`.
+- **Control Operativo In-House:** Desglose detallado de la reserva desde la recepción (`OperacionClient.tsx`), permitiendo la extensión estricta de estancias (solo `fecha_salida`) y la liquidación de comisiones directamente en sitio.
+- **Sincronización del Ledger de Comisiones:** Diagnóstico y reparación de discrepancias en Finanzas para reflejar con total precisión las comisiones devengadas contra las pagadas (fusionando `hospedaje.comisiones`, `central.transacciones_comisiones` y `hospedaje.transacciones`).
+- **Prevención Absoluta de Sobreventa:** Garantizar la liberación temporal de inventario al reprogramar, previniendo choques, y recálculo en cascada del costo total y penalizaciones/saldo pendiente o a favor.
+
+### Sprint 7.8: Cimientos de la Consola Central y Preparación para Despliegue
 - Avance funcional de la pantalla de la Consola Central (`/central` o `/admin/central`):
   - Vista general del estado de los 5 negocios.
   - Conmutador de accesos rápidos y panel base de métricas transversales.

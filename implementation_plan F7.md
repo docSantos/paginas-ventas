@@ -51,9 +51,9 @@ Este documento registra el estatus de la arquitectura del Sistema Central y los 
 
 ## 🚀 Sprint Activo
 
-### Sprint 7.6: Reorganización del Tablero Operativo y Check-in Anticipado [EN PROGRESO]
+### Sprint 7.6: Reorganización del Tablero Operativo y Check-in Anticipado [COMPLETADO]
 
-**Estatus:** En ejecución activa.
+**Estatus:** Completado y Validado.
 
 **Objetivos y Alcance:**
 - **Limpieza final de `ReservasClient.tsx`:** Remoción de toda referencia a bandejas de solicitudes (delegadas 100% al CRM). La vista de Reservas es exclusiva de estancias confirmadas.
@@ -70,3 +70,16 @@ Este documento registra el estatus de la arquitectura del Sistema Central y los 
 
 ---
 *Fin del reporte del Libro Mayor y Avances F7*
+
+
+---
+
+### Sprint 7.7: Reprogramación Trazable, Control In-House y Corrección de Comisiones [EN PROGRESO]
+
+**Estatus:** En ejecución activa.
+
+**Objetivos y Alcance:**
+- **Auditoría de Modificaciones:** Modificación controlada de estancias con validación antibloqueo en calendario y registro histórico inmutable (timestamp y motivo) de cada cambio en `historial_modificaciones`.
+- **Control Operativo In-House:** Desglose detallado de la reserva desde la recepción (`OperacionClient.tsx`), permitiendo la extensión estricta de estancias (solo `fecha_salida`) y la liquidación de comisiones directamente en sitio.
+- **Sincronización del Ledger de Comisiones:** Diagnóstico y reparación de discrepancias en Finanzas para reflejar con total precisión las comisiones devengadas contra las pagadas (fusionando `hospedaje.comisiones`, `central.transacciones_comisiones` y `hospedaje.transacciones`).
+- **Prevención Absoluta de Sobreventa:** Garantizar la liberación temporal de inventario al reprogramar, previniendo choques, y recálculo en cascada del costo total y penalizaciones/saldo pendiente o a favor.
