@@ -122,9 +122,33 @@ export function parsePhoneForDb(rawPhone: string, defaultCode = '+52') {
 }
 
 export function buildWaUrl(codigoPais: string | null | undefined, telefono: string | null | undefined, text?: string): string {
+  if (!telefono) return '';
+
   const code = (codigoPais || '+52').replace(/\D/g, '');
-  const num = (telefono || '').replace(/\D/g, '');
-  const base = `https://wa.me/${code}${num}`;
+  let num = telefono.replace(/\D/g, '');
+
+  // 1. Si ya trae '5252' duplicado, quitar los primeros dos dígitos
+  if (num.startsWith('5252')) {
+    num = num.slice(2);
+  }
+
+  // 2. Normalizar según longitud
+  let fullNumber = num;
+  if (code === '52') {
+    if (num.length === 10) {
+      fullNumber = `52${num}`;
+    } else if (num.length === 12 && num.startsWith('52')) {
+      fullNumber = num;
+    } else if (num.length === 13 && num.startsWith('521')) {
+      fullNumber = `52${num.slice(3)}`;
+    } else if (!num.startsWith('52')) {
+      fullNumber = `${code}${num}`;
+    }
+  } else {
+    fullNumber = num.startsWith(code) ? num : `${code}${num}`;
+  }
+
+  const base = `https://wa.me/${fullNumber}`;
   return text ? `${base}?text=${encodeURIComponent(text)}` : base;
 }
 

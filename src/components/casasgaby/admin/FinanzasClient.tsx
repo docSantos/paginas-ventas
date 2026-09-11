@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { registrarPagoComisionTabla, aplicarSaldoAFavorComision, registrarPagoComisionLote } from '@/app/casasgaby/admin/actions'
 import { formatPrice, formatDateEs } from '@/lib/utils'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 export function FinanzasClient({ propiedades, reservas, pagos, comisiones }: { propiedades: any[], reservas: any[], pagos: any[], comisiones?: any[] }) {
 
@@ -113,7 +115,7 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
     // 2. Dinero Real en Caja (Total cobrado en MXN de transacciones)
     const dineroEnCaja = reservas.reduce((acc, r) => {
         const propPagos = pagos.filter(p => p.reserva_id === r.id)
-        return acc + propPagos.reduce((sum, p) => sum + (Number(p.monto_mxn) || Number(p.monto) || 0), 0)
+        return acc + propPagos.reduce((sum, p) => sum + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * (Number(p.monto_mxn) || Number(p.monto) || 0)), 0)
       }, 0)
     
     // 3. Saldo por Cobrar (Saldos pendientes)
@@ -227,7 +229,7 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
         totalProyectadoProp += t
         
         const propPagos = pagos.filter(p => p.reserva_id === r.id)
-        ingresosCobrados += propPagos.reduce((acc, p) => acc + (Number(p.monto_mxn) || Number(p.monto) || 0), 0)
+        ingresosCobrados += propPagos.reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * (Number(p.monto_mxn) || Number(p.monto) || 0)), 0)
 
         // Commission
         comisionPendiente += (Number(r.monto_comision || 0) - Number(r.comision_pagada || 0))
@@ -272,19 +274,27 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
 
 
   // === LEDGER LOGIC ===
-  const totalHistorico = pagos.reduce((acc, p) => acc + Number(p.monto_mxn || 0), 0)
+  const totalHistorico = pagos.reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto_mxn || p.monto || 0)), 0)
   
   const currentMonth = new Date().getMonth()
   const currentYear = new Date().getFullYear()
   const ingresosMesActual = pagos.filter(p => {
     const d = new Date(p.created_at)
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear
-  }).reduce((acc, p) => acc + Number(p.monto_mxn || 0), 0)
+  }).reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto_mxn || p.monto || 0)), 0)
 
-  const usdAcumulado = pagos.filter(p => p.moneda === 'USD').reduce((acc, p) => acc + Number(p.monto || 0), 0)
-  const pagosEfectivo = pagos.filter(p => p.metodo_pago?.includes('Efectivo')).reduce((acc, p) => acc + Number(p.monto_mxn || 0), 0)
-  const pagosTransf = pagos.filter(p => p.metodo_pago?.includes('Transferencia')).reduce((acc, p) => acc + Number(p.monto_mxn || 0), 0)
+const usdAcumulado = pagos.filter(p => p.moneda === 'USD').reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto || 0)), 0)
+  
+const pagosEfectivo = pagos.filter(p => {
+    const m = (p.metodo_pago || '').toLowerCase()
+    return m.includes('efectivo')
+  }).reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto_mxn || p.monto || 0)), 0)
 
+  const pagosTransf = pagos.filter(p => {
+    const m = (p.metodo_pago || '').toLowerCase()
+    return m.includes('transf')
+  }).reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto_mxn || p.monto || 0)), 0)
+  
   const filteredPagos = pagos.filter(p => {
     const matchSearch = p.reservas?.nombre_cliente?.toLowerCase().includes(ledgerSearch.toLowerCase()) || 
                         p.concepto?.toLowerCase().includes(ledgerSearch.toLowerCase()) ||
@@ -366,7 +376,7 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
                   <div className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">{formatLargePrice(ingresosMesActual)}</div>
                 </CardContent>
               </Card>
-              <Card className="border-amber-100 bg-amber-50/50">
+<Card className="border-amber-100 bg-amber-50/50">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xs font-medium text-gray-500 uppercase flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-amber-600" />
@@ -374,7 +384,9 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="overflow-hidden">
-                  <div className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">${formatLargePrice(usdAcumulado)} USD</div>
+                  <div className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">
+                    {usdAcumulado < 0 ? `-$${Math.abs(usdAcumulado).toLocaleString('es-MX')}` : `$${usdAcumulado.toLocaleString('es-MX')}`} USD
+                  </div>
                 </CardContent>
               </Card>
               <Card className="border-slate-100 bg-slate-50/50">
@@ -384,9 +396,19 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
                     Efectivo vs Transf.
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-1">
-                  <div className="text-sm flex justify-between"><span className="text-gray-500">Efectivo:</span> <span className="font-semibold">{formatLargePrice(pagosEfectivo)}</span></div>
-                  <div className="text-sm flex justify-between"><span className="text-gray-500">Transf:</span> <span className="font-semibold">{formatLargePrice(pagosTransf)}</span></div>
+                <CardContent className="space-y-1.5 pt-1">
+                  <div className="text-sm flex items-center justify-between gap-2">
+                    <span className="text-gray-500">Efectivo:</span>
+                    <span className={`font-semibold ${pagosEfectivo < 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+                      {pagosEfectivo < 0 ? `-$${Math.abs(pagosEfectivo).toLocaleString('es-MX')}` : `$${pagosEfectivo.toLocaleString('es-MX')}`}
+                    </span>
+                  </div>
+                  <div className="text-sm flex items-center justify-between gap-2">
+                    <span className="text-gray-500">Transf:</span>
+                    <span className={`font-semibold ${pagosTransf < 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+                      {pagosTransf < 0 ? `-$${Math.abs(pagosTransf).toLocaleString('es-MX')}` : `$${pagosTransf.toLocaleString('es-MX')}`}
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -436,7 +458,14 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
                   <tbody className="divide-y divide-gray-100">
                     {filteredPagos.map((p, i) => (
                       <tr key={i} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-600">{formatDateEs(p.created_at)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="font-medium text-gray-900">
+                            {format(new Date(p.created_at || p.fecha), "dd MMM yyyy", { locale: es })}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {format(new Date(p.created_at || p.fecha), "HH:mm 'hrs'", { locale: es })}
+                          </div>
+                        </td>
                         <td className="px-4 py-3">
                           <div className="font-semibold text-gray-900">{p.reservas?.nombre_cliente || 'Desconocido'}</div>
                           <div className="text-xs text-gray-500">{p.concepto || p.propiedades?.titulo}</div>
@@ -449,9 +478,16 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
                             <span>{formatPrice(p.monto)}</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right font-bold text-gray-900">
-                          {formatPrice(p.monto_mxn || p.monto)}
-                        </td>
+                        <td className={`px-4 py-3 text-right font-bold ${p.tipo === 'egreso' || p.categoria === 'reembolso' ? 'text-red-600' : 'text-gray-900'}`}>
+                        {p.tipo === 'egreso' || p.categoria === 'reembolso' ? (
+                          <div className="flex flex-col items-end">
+                            <span>-{formatPrice(p.monto_mxn || p.monto)}</span>
+                            <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded mt-1 whitespace-nowrap">Reembolso / Egreso</span>
+                          </div>
+                        ) : (
+                          formatPrice(p.monto_mxn || p.monto)
+                        )}
+                      </td>
                       </tr>
                     ))}
                     {filteredPagos.length === 0 && (

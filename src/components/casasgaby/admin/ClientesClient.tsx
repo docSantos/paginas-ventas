@@ -662,7 +662,57 @@ function CrmPipeline({ solicitudes, reservasConfirmadas = [], servicios = [] }: 
               const totalBase = parseFloat(s.costo_total || s.monto_total_acordado || '0');
               const hBase = Math.max(0, totalBase - eTotal);
               
-              setConfExtras(initExtras);
+              
+              
+                              const confReserva = reservasConfirmadas.find(r => 
+
+              
+                                r.propiedad_id === s.propiedad_id &&
+
+              
+                                r.id !== s.reserva_id &&
+
+              
+                                r.solicitud_id !== s.id &&
+
+              
+                                r.fecha_entrada < s.fecha_salida &&
+
+              
+                                r.fecha_salida > s.fecha_entrada
+
+              
+                              );
+
+              
+                              
+
+              
+                              if (confReserva) {
+
+              
+                                const fEntrada = new Date(s.fecha_entrada + 'T00:00:00');
+
+              
+                                const fSalida = new Date(s.fecha_salida + 'T00:00:00');
+
+              
+                                const formatter = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' });
+
+              
+                                alert(`No es posible confirmar la reserva: El rango de fechas seleccionado (${formatter.format(fEntrada)} - ${formatter.format(fSalida)}) ya está reservado por ${confReserva.nombre_cliente}.`);
+
+              
+                                return;
+
+              
+                              }
+
+              
+              
+
+              
+                              setConfExtras(initExtras);
               setConfHospedaje(hBase.toFixed(2));
               setConfirmModal({ open: true, solicitud: s })
               setConfMoneda('MXN')

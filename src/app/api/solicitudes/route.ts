@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { revalidatePath } from 'next/cache'
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
         costo_total: Number(costo_total),
         monto_apartado: Number(monto_apartado),
         servicios_extra: servicios_extra || [],
-        estado: 'Pendiente'
+        estado: 'por_contactar'
       }).select('id').single()
 
       if (error) {
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    revalidatePath('/casasgaby/admin/clientes')
     return NextResponse.json({ success: true, id: solicitudId })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })

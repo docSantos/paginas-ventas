@@ -1,10 +1,15 @@
-import re
+import os
 
-with open('src/components/casasgaby/admin/ReservasClient.tsx', 'r', encoding='utf-8') as f:
-    content = f.read()
+filepath = 'src/components/casasgaby/admin/ReservasClient.tsx'
+with open(filepath, 'r', encoding='utf-8') as f:
+    lines = f.readlines()
 
-# Replace the extra </div>
-content = content.replace("          </div>\n        </DialogContent>\n      </Dialog>\n\n      {/* MODAL EDITAR TARIFA BASE */}", "        </DialogContent>\n      </Dialog>\n\n      {/* MODAL EDITAR TARIFA BASE */}")
+for i, line in enumerate(lines):
+    if "Columna Derecha: Finanzas y Botones" in line:
+        # Insert a </div> right before it
+        lines.insert(i-1, "                        </div>\n")
+        break
 
-with open('src/components/casasgaby/admin/ReservasClient.tsx', 'w', encoding='utf-8') as f:
-    f.write(content)
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.writelines(lines)
+print("Restored missing div closing tag")

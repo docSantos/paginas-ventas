@@ -49,12 +49,24 @@ Este documento registra el estatus de la arquitectura del Sistema Central y los 
 
 ---
 
-## 🚀 Próximos Pasos (Hoja de Ruta Inmediata)
+## 🚀 Sprint Activo
 
-### Sprint 7.6: Reorganización del Tablero con IA y Consola Central
-1. Preparar la arquitectura UI para el salto visual (Sonnet) y separar claramente las "Solicitudes Pendientes" de las "Reservas Confirmadas Futuras".
-2. Habilitar la posibilidad de adelantar Check-ins (ej. para un huésped que llega un día antes y se negocia).
-3. Levantar la ruta global `/central` para orquestar multinegocios.
+### Sprint 7.6: Reorganización del Tablero Operativo y Check-in Anticipado [EN PROGRESO]
+
+**Estatus:** En ejecución activa.
+
+**Objetivos y Alcance:**
+- **Limpieza final de `ReservasClient.tsx`:** Remoción de toda referencia a bandejas de solicitudes (delegadas 100% al CRM). La vista de Reservas es exclusiva de estancias confirmadas.
+- **Tablero segmentado en 4 bandejas:**
+  1. 🕐 **Llegadas de Hoy** — Reservas cuya `fecha_entrada <= hoy` sin `check_in_real_at` registrado. Expone el botón **"Adelantar Check-in"** de forma prominente.
+  2. 🏠 **Próximas Llegadas** — Reservas futuras confirmadas (`fecha_entrada > hoy`, sin check-in). Botón "Adelantar Check-in" disponible en el detalle expandible.
+  3. ✅ **En Curso / In-House** — Reservas con `check_in_real_at` activo y sin `check_out_real_at`. Muestra badge "In-House" y enlace al panel Operativo.
+  4. 🗄️ **Historial / Concluidas** — Reservas con `check_out_real_at` registrado (visibilidad de auditoría).
+- **Acción Operativa "Adelantar Check-in":**
+  - Modal de confirmación ágil con campo de notas operativas opcionales (ej. cuota de early check-in).
+  - Server Action `adelantarCheckIn(reservaId, notas?)` que escribe `check_in_real_at = NOW()` y revalida `/casasgaby/admin/reservas` y `/casasgaby/admin/operacion`.
+  - La reserva aparece de inmediato en la sección In-House del panel Operativo.
+- **Query del Server Component actualizada:** Incluye estados `'Activa'`, `'confirmada'` y `'Confirmada'` para máxima cobertura de datos reales.
 
 ---
 *Fin del reporte del Libro Mayor y Avances F7*

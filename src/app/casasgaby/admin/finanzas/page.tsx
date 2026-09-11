@@ -20,7 +20,7 @@ export default async function FinanzasPage() {
   const { data: reservas } = await db.schema('hospedaje').from('reservas').select('*').eq('estado', 'Activa')
 
   // Traer historial de pagos
-  const { data: pagos } = await db.schema('hospedaje').from('transacciones').select('*, reservas(nombre_cliente, propiedades(titulo))').eq('tipo', 'ingreso').order('created_at', { ascending: false })
+  const { data: pagos } = await db.schema('hospedaje').from('transacciones').select('*, reservas(nombre_cliente, propiedades(titulo))').order('created_at', { ascending: false })
 
   // Traer comisiones
   const { data: comisiones } = await db.schema('hospedaje').from('comisiones').select('*, propiedades(titulo), reservas(fecha_entrada, nombre_cliente)').order('created_at', { ascending: false })

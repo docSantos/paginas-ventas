@@ -1,4 +1,4 @@
-﻿'use server'
+'use server'
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
@@ -114,7 +114,10 @@ export async function aprobarSolicitud(
 
   if (errorSol) throw new Error('Error al buscar solicitud: ' + errorSol.message)
   if (!solicitud) return { success: false, message: 'La solicitud no existe o ya fue eliminada.' }
-  if (!['Pendiente', 'nueva', 'contactado', 'cotizado', 'anticipo_pendiente'].includes(solicitud.estado)) throw new Error('La solicitud ya fue procesada o está en una etapa inválida')
+  const etapasValidasParaConfirmar = ['por_contactar', 'en_seguimiento'];
+  if (!etapasValidasParaConfirmar.includes(solicitud.estado)) {
+    throw new Error('La solicitud ya fue procesada o está en una etapa inválida');
+  }
 
   // VALIDACIÓN DE OVERBOOKING
   const { data: conflictos, error: errConflictos } = await db
@@ -133,14 +136,31 @@ export async function aprobarSolicitud(
     };
   }
 
-  const { data: tenant } = await db.schema('hospedaje').from('tenants_config').select('porcentaje_comision_base').eq('id', 'casasgaby').maybeSingle()
-  const pComision = tenant?.porcentaje_comision_base ? Number(tenant.porcentaje_comision_base) : 2.50
-  
-  const sumaExtras = extras ? extras.reduce((acc, e) => acc + Number(e.monto), 0) : 0
-  const comisionExtras = extras ? extras.reduce((acc, e) => acc + (Number(e.monto) * Number(e.porcentaje_comision) / 100), 0) : 0
+  const { data: regla, error: errRegla } = await db
+    .schema('central')
+    .from('reglas_comisiones')
+    .select('porcentaje_base, porcentaje_extras')
+    .eq('modulo', 'hospedaje')
+    .eq('activo', true)
+    .single();
 
-  const nuevoTotalAcordado = montoAcordado + sumaExtras
-  const montoComisionCalc = ((montoAcordado * pComision) / 100) + comisionExtras
+  if (errRegla || !regla) {
+    throw new Error('Error contable: Regla de comisiones no encontrada en central.reglas_comisiones');
+  }
+
+  const tasaBase = Number(regla.porcentaje_base) / 100;
+  const tasaExtras = Number(regla.porcentaje_extras) / 100;
+
+  const sumaExtras = extras ? extras.reduce((acc: any, e: any) => acc + Number(e.monto || e.precio_base || 0), 0) : 0;
+  
+  let tarifa_base = Number(montoAcordado);
+  if (tarifa_base >= sumaExtras && sumaExtras > 0) {
+    tarifa_base = tarifa_base - sumaExtras;
+  }
+  
+  const nuevoTotalAcordado = tarifa_base + sumaExtras;
+  const montoComisionCalc = Number(((tarifa_base * tasaBase) + (sumaExtras * tasaExtras)).toFixed(2));
+  const pComision = Number(regla.porcentaje_base);
 
   // --- UPSERT EN CLIENTES ---
   let codigoPais = '+52';
@@ -171,7 +191,7 @@ export async function aprobarSolicitud(
   await db.schema('hospedaje').from('clientes').update({ codigo_pais: codigoPais, telefono: phoneDigits }).eq('id', clienteId);
   // -------------------------
 
-  const { data: reserva, error: errorRes } = await db
+const { data: reserva, error: errorRes } = await db
     .schema('hospedaje').from('reservas')
     .insert({
       propiedad_id: solicitud.propiedad_id,
@@ -181,9 +201,9 @@ export async function aprobarSolicitud(
       telefono: solicitud.telefono,
       fecha_entrada: solicitud.fecha_entrada,
       fecha_salida: solicitud.fecha_salida,
-      costo_total: solicitud.costo_total || 0,
+      costo_total: nuevoTotalAcordado,
       monto_total_acordado: nuevoTotalAcordado,
-      tarifa_base: montoAcordado,
+      tarifa_base: tarifa_base,
       monto_apartado: moneda === 'USD' ? (montoAnticipo * tc) : montoAnticipo,
       porcentaje_comision: pComision,
       monto_comision: montoComisionCalc,
@@ -199,6 +219,20 @@ export async function aprobarSolicitud(
     .single()
 
   if (errorRes) throw new Error('Error al crear la reserva: ' + errorRes.message)
+
+    // REGISTRAR EN central.transacciones_comisiones
+    if (reserva?.id) {
+      await db.schema('central').from('transacciones_comisiones').insert({
+        tenant_id: 'casasgaby',
+        origen_modulo: 'hospedaje',
+        referencia_id: String(reserva.id),
+        concepto: `Comisión Reserva - ${solicitud.nombre_cliente}`,
+        monto_total: nuevoTotalAcordado,
+        porcentaje_comision: pComision,
+        monto_comision: montoComisionCalc,
+        estado: 'pendiente'
+      });
+    }
 
   // Insert payment record if anticipo > 0
   if (montoAnticipo > 0) {
@@ -249,7 +283,7 @@ export async function aprobarSolicitud(
 
   const { error: errorUpd } = await db
     .schema('hospedaje').from('solicitudes')
-    .update({ estado: 'Aprobada' })
+    .update({ estado: 'confirmada' })
     .eq('id', solicitudId)
 
   if (errorUpd) throw new Error('Error al actualizar la solicitud')
@@ -365,14 +399,15 @@ export async function registrarAbono(
   const equivalenteMXN = moneda === 'USD' ? monto * tc : monto;
 
   // Validation overpayment
-  const { data: reserva, error: errFetch } = await db.schema('hospedaje').from('reservas').select('monto_total_acordado, cliente_id, transacciones(monto_mxn, tipo)').eq('id', reservaId).maybeSingle()
+  const { data: reserva, error: errFetch } = await db.schema('hospedaje').from('reservas').select('monto_total_acordado, costo_total, cliente_id, transacciones(monto_mxn, tipo)').eq('id', reservaId).maybeSingle()
   if (errFetch) throw new Error('Error al buscar reserva: ' + errFetch.message)
   if (!reserva) return { success: false, message: 'La reserva no existe.' }
 
-  const totalPagosRes = reserva.transacciones?.filter((t: any) => t.tipo === 'ingreso').reduce((acc: any, p: any) => acc + (Number(p.monto_mxn) || 0), 0) || 0
-  const saldoPend = Number(reserva.monto_total_acordado) - totalPagosRes
+  const totalAcordado = Number(reserva.monto_total_acordado) || Number(reserva.costo_total) || 0
+  const totalPagosRes = reserva.transacciones?.filter((t: any) => t.tipo === 'ingreso').reduce((acc: any, p: any) => acc + Number(p.monto_acreditado ?? p.monto_mxn ?? p.monto ?? 0), 0) || 0
+  const saldoPend = totalAcordado - totalPagosRes
 
-  if (equivalenteMXN > saldoPend) {
+  if (equivalenteMXN > saldoPend + 0.5) {
     throw new Error('El abono no puede exceder el saldo pendiente de MXN ' + saldoPend)
   }
 
@@ -390,8 +425,8 @@ export async function registrarAbono(
   if (pagoErr) throw new Error('Error al registrar abono: ' + pagoErr.message)
 
   // Update cached total in reservas
-  const { data: trans } = await db.schema('hospedaje').from('transacciones').select('monto_mxn').eq('reserva_id', reservaId).eq('tipo', 'ingreso')
-  const totalPagado = trans?.reduce((sum: number, p: any) => sum + Number(p.monto_mxn), 0) || 0
+  const { data: trans } = await db.schema('hospedaje').from('transacciones').select('monto, monto_mxn, monto_acreditado').eq('reserva_id', reservaId).eq('tipo', 'ingreso')
+  const totalPagado = trans?.reduce((sum: number, p: any) => sum + Number(p.monto_acreditado ?? p.monto_mxn ?? p.monto ?? 0), 0) || 0
 
   await db.schema('hospedaje').from('reservas').update({ monto_apartado: totalPagado }).eq('id', reservaId)
 
@@ -557,31 +592,43 @@ export async function actualizarTarifaBase(reservaId: string, tarifaBase: number
   const supabase = await createClient()
   const db = supabase as any
 
-  const { data: reserva } = await db.schema('hospedaje').from('reservas').select('porcentaje_comision, ajustes_reserva(*)').eq('id', reservaId).maybeSingle()
+  const { data: reserva } = await db.schema('hospedaje').from('reservas').select('tarifa_base, monto_total_acordado, costo_total').eq('id', reservaId).maybeSingle()
   if (!reserva) throw new Error('Reserva no encontrada')
 
-  const cargosList = reserva.ajustes_reserva?.filter((a: any) => a.tipo === 'cargo') || []
-  const descuentosList = reserva.ajustes_reserva?.filter((a: any) => a.tipo === 'descuento') || []
+  const { data: regla } = await db.schema('central').from('reglas_comisiones').select('porcentaje_base, porcentaje_extras').eq('modulo', 'hospedaje').eq('activo', true).single()
+  if (!regla) throw new Error('Regla de comisiones no encontrada')
   
-  const cargos = cargosList.reduce((acc: number, a: any) => acc + Number(a.monto), 0)
-  const descuentos = descuentosList.reduce((acc: number, a: any) => acc + Number(a.monto), 0)
-  
-  const nuevoTotal = Math.max(0, tarifaBase + cargos - descuentos)
+  const tasaBase = Number(regla.porcentaje_base) / 100
+  const tasaExtras = Number(regla.porcentaje_extras) / 100
 
-  const comisionBaseCalculada = tarifaBase * (Number(reserva.porcentaje_comision) / 100 || 0.025)
-  const comisionCargos = cargosList.reduce((acc: number, a: any) => acc + Number(a.monto_comision || 0), 0)
-  const nuevoMontoComision = comisionBaseCalculada + comisionCargos
+  const subtotalExtras = Math.max(0, Number(reserva.monto_total_acordado || reserva.costo_total || 0) - Number(reserva.tarifa_base || 0));
+  const nuevoTotalAcordado = Number(tarifaBase) + subtotalExtras;
 
-  await db.schema('hospedaje').from('reservas').update({ tarifa_base: tarifaBase, monto_total_acordado: nuevoTotal, monto_comision: nuevoMontoComision }).eq('id', reservaId)
+  const comisionBase = Number(tarifaBase) * tasaBase;
+  const comisionExtras = subtotalExtras * tasaExtras;
+  const nuevaComisionTotal = Number((comisionBase + comisionExtras).toFixed(2));
+
+  await db.schema('hospedaje').from('reservas').update({ 
+    tarifa_base: Number(tarifaBase), 
+    monto_total_acordado: nuevoTotalAcordado, 
+    costo_total: nuevoTotalAcordado,
+    monto_comision: nuevaComisionTotal 
+  }).eq('id', reservaId)
 
   await db.schema('hospedaje').from('comisiones').update({
-    monto_estancia: nuevoTotal,
-    monto_comision: nuevoMontoComision
+    monto_estancia: nuevoTotalAcordado,
+    monto_comision: nuevaComisionTotal
   }).eq('reserva_id', reservaId)
+    
+  await db.schema('central').from('transacciones_comisiones').update({
+    monto_total: nuevoTotalAcordado,
+    monto_comision: nuevaComisionTotal
+  }).eq('referencia_id', String(reservaId))
 
   revalidatePath('/casasgaby/admin/reservas')
   revalidatePath('/casasgaby/admin/clientes')
   revalidatePath('/casasgaby/admin/finanzas')
+  revalidatePath('/casasgaby/admin/operacion')
   return { success: true }
 }
 
@@ -593,9 +640,10 @@ export async function agregarAjusteReserva(reservaId: string, tipo: 'cargo' | 'd
   const supabase = await createClient()
   const db = supabase as any
 
-  const { data: tenant } = await db.schema('hospedaje').from('tenants_config').select('porcentaje_comision_base, comision_servicios_porcentaje').eq('id', 'casasgaby').maybeSingle()
-  const pComisionBase = tenant?.porcentaje_comision_base ? Number(tenant.porcentaje_comision_base) : 2.50
-  const pComisionServicios = tenant?.comision_servicios_porcentaje ? Number(tenant.comision_servicios_porcentaje) : 5.00
+  const { data: regla } = await db.schema('central').from('reglas_comisiones').select('porcentaje_base, porcentaje_extras').eq('modulo', 'hospedaje').eq('activo', true).single()
+  if (!regla) throw new Error('Error contable: Regla de comisiones no encontrada en central.reglas_comisiones')
+  const pComisionBase = Number(regla.porcentaje_base)
+  const pComisionServicios = Number(regla.porcentaje_extras)
 
   let porcentaje_comision = 0;
   if (tipo === 'cargo') {
@@ -611,7 +659,11 @@ export async function agregarAjusteReserva(reservaId: string, tipo: 'cargo' | 'd
   const { data: reserva } = await db.schema('hospedaje').from('reservas').select('tarifa_base, porcentaje_comision, ajustes_reserva(*)').eq('id', reservaId).maybeSingle()
   if (reserva) {
     const tarifaBase = Number(reserva.tarifa_base) || 0
-    const cargosList = reserva.ajustes_reserva?.filter((a: any) => a.tipo === 'cargo') || []
+    
+  const { data: regla } = await db.schema('central').from('reglas_comisiones').select('porcentaje_base').eq('modulo', 'hospedaje').eq('activo', true).single()
+  const tasaBase = regla ? Number(regla.porcentaje_base) / 100 : (Number(reserva.porcentaje_comision)/100);
+  
+const cargosList = reserva.ajustes_reserva?.filter((a: any) => a.tipo === 'cargo') || []
     const descuentosList = reserva.ajustes_reserva?.filter((a: any) => a.tipo === 'descuento') || []
     const cargos = cargosList.reduce((acc: number, a: any) => acc + Number(a.monto), 0)
     const descuentos = descuentosList.reduce((acc: number, a: any) => acc + Number(a.monto), 0)
@@ -628,6 +680,11 @@ export async function agregarAjusteReserva(reservaId: string, tipo: 'cargo' | 'd
       monto_estancia: nuevoTotal,
       monto_comision: nuevoMontoComision
     }).eq('reserva_id', reservaId)
+    
+    await db.schema('central').from('transacciones_comisiones').update({
+      monto_total: nuevoTotal,
+      monto_comision: nuevoMontoComision
+    }).eq('referencia_id', String(reservaId))
   }
 
   revalidatePath('/casasgaby/admin/reservas')
@@ -815,7 +872,10 @@ export async function eliminarAjusteReserva(ajusteId: string, reservaId: string)
     
     const nuevoTotal = Math.max(0, tarifaBase + cargos - descuentos)
     
-    const comisionBaseCalculada = tarifaBase * (Number(reserva.porcentaje_comision) / 100 || 0.025)
+    
+    const { data: regla } = await db.schema('central').from('reglas_comisiones').select('porcentaje_base').eq('modulo', 'hospedaje').eq('activo', true).maybeSingle();
+    const tasaBase = regla ? Number(regla.porcentaje_base) / 100 : 0;
+  const comisionBaseCalculada = tarifaBase * (reserva.porcentaje_comision ? (Number(reserva.porcentaje_comision) / 100) : tasaBase)
     const comisionCargos = cargosList.reduce((acc: number, a: any) => acc + Number(a.monto_comision || 0), 0)
     const nuevoMontoComision = comisionBaseCalculada + comisionCargos
     
@@ -825,6 +885,11 @@ export async function eliminarAjusteReserva(ajusteId: string, reservaId: string)
       monto_estancia: nuevoTotal,
       monto_comision: nuevoMontoComision
     }).eq('reserva_id', reservaId)
+    
+    await db.schema('central').from('transacciones_comisiones').update({
+      monto_total: nuevoTotal,
+      monto_comision: nuevoMontoComision
+    }).eq('referencia_id', String(reservaId))
   }
 
   revalidatePath('/casasgaby/admin/reservas')
@@ -837,8 +902,8 @@ export async function crearServicio(nombre: string, descripcion: string, precio_
   const supabase = await createClient()
   const db = supabase as any
   
-  const { data: tenant } = await db.schema('hospedaje').from('tenants_config').select('comision_servicios_porcentaje').eq('id', 'casasgaby').maybeSingle()
-  const pComision = tenant?.comision_servicios_porcentaje ? Number(tenant.comision_servicios_porcentaje) : 5.0
+  const { data: regla } = await db.schema('central').from('reglas_comisiones').select('porcentaje_extras').eq('modulo', 'hospedaje').eq('activo', true).single()
+    const pComision = regla ? Number(regla.porcentaje_extras) : 0
   
   const payload = {
     tenant_id: 'casasgaby',
@@ -857,14 +922,124 @@ export async function crearServicio(nombre: string, descripcion: string, precio_
 }
 
 
-export async function marcarCheckIn(reservaId: string) {
+export async function adelantarCheckIn(reservaId: string, notasOperativas?: string) {
   const supabase = await createClient()
   const db = supabase as any
-  const { error } = await db.schema('hospedaje').from('reservas').update({ check_in_real_at: new Date().toISOString() }).eq('id', reservaId)
+
+  // 1. Obtener datos de la reserva objetivo
+  const { data: reserva, error: errReserva } = await db.schema('hospedaje')
+    .from('reservas')
+    .select('propiedad_id, fecha_entrada, fecha_salida, propiedades(titulo)')
+    .eq('id', reservaId)
+    .single()
+    
+  if (errReserva || !reserva) return { success: false, error: 'Reserva no encontrada.' }
+
+  const propiedadTitulo = reserva.propiedades?.titulo || 'La propiedad'
+
+  // 2. Verificar colisión física actual en la propiedad (alguien con check-in y sin check-out)
+  const { data: ocupantes, error: errOcupacion } = await db.schema('hospedaje')
+    .from('reservas')
+    .select('id, nombre_cliente')
+    .eq('propiedad_id', reserva.propiedad_id)
+    .not('check_in_real_at', 'is', null)
+    .is('check_out_real_at', null)
+    .neq('id', reservaId)
+
+  if (errOcupacion) return { success: false, error: errOcupacion.message }
+  if (ocupantes && ocupantes.length > 0) {
+    const nombreOcupante = ocupantes[0].nombre_cliente || 'otro huésped'
+    return { 
+      success: false, 
+      error: `Operación bloqueada: ${propiedadTitulo} se encuentra habitada actualmente por ${nombreOcupante}. Debe realizarse el check-out previo antes de ingresar un nuevo huésped.` 
+    }
+  }
+
+  // 3. Calcular nueva fecha de salida preservando noches
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Cancun' }).format(new Date())
+  
+  // Calculate nights originally booked
+  const fechaIn = new Date(reserva.fecha_entrada + 'T00:00:00')
+  const fechaOut = new Date(reserva.fecha_salida + 'T00:00:00')
+  const noches = Math.round((fechaOut.getTime() - fechaIn.getTime()) / (1000 * 60 * 60 * 24))
+  
+  // Calculate new exit date based on today
+  const newFechaOut = new Date(new Date(todayStr + 'T00:00:00').getTime() + (noches * 24 * 60 * 60 * 1000))
+  const newFechaOutStr = newFechaOut.toISOString().split('T')[0]
+
+  // 4. Actualizar reserva
+  const updatePayload: Record<string, any> = { 
+    check_in_real_at: new Date().toISOString(),
+    fecha_entrada: todayStr,
+    fecha_salida: newFechaOutStr
+  }
+  if (notasOperativas) updatePayload.notas_operativas = notasOperativas
+  
+  const { error } = await db.schema('hospedaje').from('reservas').update(updatePayload).eq('id', reservaId)
   if (error) return { success: false, error: error.message }
+  
+  revalidatePath('/casasgaby/admin/reservas')
   revalidatePath('/casasgaby/admin/operacion')
   return { success: true }
 }
+
+export async function marcarCheckIn(reservaId: string) {
+  const supabase = await createClient()
+  const db = supabase as any
+
+  const { data: reserva, error: fetchErr } = await db
+    .schema('hospedaje')
+    .from('reservas')
+    .select('id, fecha_entrada, fecha_salida')
+    .eq('id', reservaId)
+    .single()
+
+  if (fetchErr || !reserva) {
+    return { success: false, error: 'No se encontró la reserva.' }
+  }
+
+  // 1. Calcular noches originales sin sesgo horario
+  const [yIn, mIn, dIn] = reserva.fecha_entrada.split('-').map(Number)
+  const [yOut, mOut, dOut] = reserva.fecha_salida.split('-').map(Number)
+  const entradaOrig = new Date(Date.UTC(yIn, mIn - 1, dIn))
+  const salidaOrig = new Date(Date.UTC(yOut, mOut - 1, dOut))
+  const diffTime = salidaOrig.getTime() - entradaOrig.getTime()
+  const nochesOriginales = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)))
+
+  // 2. Obtener fecha calendario local para evitar el salto por toISOString
+  const ahora = new Date()
+  const y = ahora.getFullYear()
+  const m = String(ahora.getMonth() + 1).padStart(2, '0')
+  const d = String(ahora.getDate()).padStart(2, '0')
+  const nuevaFechaEntradaStr = `${y}-${m}-${d}`
+
+  // 3. Proyectar salida sumando exactamente las noches originales
+  const salidaDate = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + nochesOriginales)
+  const ySal = salidaDate.getFullYear()
+  const mSal = String(salidaDate.getMonth() + 1).padStart(2, '0')
+  const dSal = String(salidaDate.getDate()).padStart(2, '0')
+  const nuevaFechaSalidaStr = `${ySal}-${mSal}-${dSal}`
+
+  // 4. Guardar en base de datos
+  const { error: updateErr } = await db
+    .schema('hospedaje')
+    .from('reservas')
+    .update({
+      check_in_real_at: ahora.toISOString(),
+      fecha_entrada: nuevaFechaEntradaStr,
+      fecha_salida: nuevaFechaSalidaStr
+    })
+    .eq('id', reservaId)
+
+  if (updateErr) {
+    return { success: false, error: updateErr.message }
+  }
+
+  revalidatePath('/casasgaby/admin/reservas')
+  revalidatePath('/casasgaby/admin/operacion')
+  return { success: true }
+}
+
 
 export async function marcarCheckOut(reservaId: string) {
   const supabase = await createClient()
@@ -880,7 +1055,7 @@ export async function liquidarSaldoRecepcion(reservaId: string, monto: number, c
   const supabase = await createClient()
   const db = supabase as any
   
-  const { error: pagoErr } = await db.schema('hospedaje').from('transacciones').insert({
+  const { data: nuevaTransaccion, error: pagoErr } = await db.schema('hospedaje').from('transacciones').insert({
     reserva_id: reservaId,
     cliente_id: clienteId,
     monto: monto,
@@ -890,12 +1065,12 @@ export async function liquidarSaldoRecepcion(reservaId: string, monto: number, c
     concepto: notas || 'Liquidación/Abono en recepción',
     tipo: 'ingreso',
     categoria: 'reserva'
-  })
+  }).select().single()
   if (pagoErr) return { success: false, error: pagoErr.message }
 
   // Update cached total in reservas
-  const { data: trans } = await db.schema('hospedaje').from('transacciones').select('monto_mxn').eq('reserva_id', reservaId).eq('tipo', 'ingreso')
-  const totalPagado = trans?.reduce((sum: number, p: any) => sum + Number(p.monto_mxn), 0) || 0
+  const { data: trans } = await db.schema('hospedaje').from('transacciones').select('monto, monto_mxn, monto_acreditado').eq('reserva_id', reservaId).eq('tipo', 'ingreso')
+  const totalPagado = trans?.reduce((sum: number, p: any) => sum + Number(p.monto_acreditado ?? p.monto_mxn ?? p.monto ?? 0), 0) || 0
 
   await db.schema('hospedaje').from('reservas').update({ monto_apartado: totalPagado }).eq('id', reservaId)
 
@@ -903,21 +1078,90 @@ export async function liquidarSaldoRecepcion(reservaId: string, monto: number, c
   return { success: true }
 }
 
-export async function checkOutAnticipado(reservaId: string, nuevoCosto: number, nuevaFechaSalida: string, marcarSalida: boolean = true) {
-  nuevoCosto = parseFloat(nuevoCosto.toFixed(2))
+export async function checkOutAnticipado(
+  reservaId: string,
+  nuevaTarifaBase: number,
+  nuevoCostoTotal: number,
+  nuevaFechaSalida: string,
+  marcarSalida: boolean = true,
+  reembolso?: { monto: number; metodo: string; concepto?: string; retenerComoPenalizacion?: boolean }
+) {
+  nuevaTarifaBase = parseFloat(Number(nuevaTarifaBase).toFixed(2))
+  nuevoCostoTotal = parseFloat(Number(nuevoCostoTotal).toFixed(2))
   const supabase = await createClient()
   const db = supabase as any
-  const payload: any = {
-    costo_total: nuevoCosto,
-    monto_total_acordado: nuevoCosto,
-    fecha_salida: nuevaFechaSalida
+
+  // 1. Obtener datos clave de la reserva previa
+  const { data: reserva, error: fetchErr } = await db
+    .schema('hospedaje')
+    .from('reservas')
+    .select('propiedad_id, cliente_id, porcentaje_comision')
+    .eq('id', reservaId)
+    .single()
+
+  if (fetchErr || !reserva) {
+    return { success: false, error: fetchErr?.message || 'Reserva no encontrada' }
   }
+
+  // 2. Si se retiene el excedente como penalización, el nuevo costo total absorbe esa penalización
+  let costoFinal = nuevoCostoTotal
+  let montoReembolsado = 0
+
+  if (reembolso && reembolso.monto > 0) {
+    if (reembolso.retenerComoPenalizacion) {
+      // El total acordado no se reduce tanto; absorbe el dinero retenido
+      costoFinal = parseFloat((nuevoCostoTotal + reembolso.monto).toFixed(2))
+    } else {
+      // Registrar egreso real de devolución
+      montoReembolsado = parseFloat(reembolso.monto.toFixed(2))
+      const { error: egresoErr } = await db.schema('hospedaje').from('transacciones').insert({
+        reserva_id: reservaId,
+        cliente_id: reserva.cliente_id,
+        propiedad_id: reserva.propiedad_id,
+        monto: montoReembolsado,
+        moneda: 'MXN',
+        tipo_cambio: 1,
+        metodo_pago: reembolso.metodo || 'Efectivo MXN',
+        concepto: reembolso.concepto || 'Devolución de saldo a favor por salida anticipada',
+        tipo: 'egreso',
+        categoria: 'reembolso',
+        fecha: new Date().toISOString()
+      })
+      if (egresoErr) console.error('Error insertando egreso de reembolso:', egresoErr)
+    }
+  }
+
+  // 3. Preparar payload para la tabla reservas
+  const payload: any = {
+    tarifa_base: nuevaTarifaBase,
+    costo_total: costoFinal,
+    monto_total_acordado: costoFinal,
+    fecha_salida: nuevaFechaSalida,
+    monto_reembolsado: montoReembolsado
+  }
+
   if (marcarSalida) {
     payload.check_out_real_at = new Date().toISOString()
   }
-  const { error } = await db.schema('hospedaje').from('reservas').update(payload).eq('id', reservaId)
-  if (error) return { success: false, error: error.message }
+
+  const { error: updErr } = await db.schema('hospedaje').from('reservas').update(payload).eq('id', reservaId)
+  if (updErr) return { success: false, error: updErr.message }
+
+  // 4. Actualizar comisiones con la nueva base acordada
+  try {
+    const pComision = Number(reserva.porcentaje_comision) || 0
+    const nuevaComision = parseFloat(((costoFinal * pComision) / 100).toFixed(2))
+
+    await db.schema('hospedaje').from('reservas').update({ monto_comision: nuevaComision }).eq('id', reservaId)
+    await db.schema('hospedaje').from('comisiones').update({ monto_estancia: costoFinal, monto_comision: nuevaComision }).eq('reserva_id', reservaId)
+    await db.schema('central').from('transacciones_comisiones').update({ monto_total: costoFinal, monto_comision: nuevaComision }).eq('referencia_id', String(reservaId))
+  } catch (comErr) {
+    console.warn('Advertencia actualizando comisión tras salida anticipada:', comErr)
+  }
+
   revalidatePath('/casasgaby/admin/operacion')
+  revalidatePath('/casasgaby/admin/reservas')
+  revalidatePath('/casasgaby/admin/finanzas')
   return { success: true }
 }
 
@@ -1026,7 +1270,7 @@ export async function convertirSolicitudAReserva(solicitudId: string, datosReser
     // Force the state to 'convertida' instead of 'Aprobada' for CRM purposes
     const supabase = await createClient()
     const db = supabase as any
-    await db.schema('hospedaje').from('solicitudes').update({ estado: 'convertida' }).eq('id', solicitudId)
+    await db.schema('hospedaje').from('solicitudes').update({ estado: 'confirmada' }).eq('id', solicitudId)
   }
   
   return res
@@ -1038,14 +1282,14 @@ export async function bloquearFechas(propiedadId: string, fechaEntrada: string, 
 
   const { error } = await db.schema('hospedaje').from('reservas').insert({
     propiedad_id: propiedadId,
+    nombre_cliente: `[BLOQUEO] ${motivo}`,
+    telefono: '0000000000',
+    email: null,
     fecha_entrada: fechaEntrada,
     fecha_salida: fechaSalida,
-    estado: motivo === 'mantenimiento' ? 'mantenimiento' : 'bloqueo',
-    nombre_cliente: `[BLOQUEO] ${motivo}`,
-    noches: Math.max(1, Math.ceil((new Date(fechaSalida).getTime() - new Date(fechaEntrada).getTime()) / (1000 * 60 * 60 * 24))),
-    monto_total_acordado: 0,
+    costo_total: 0,
     monto_apartado: 0,
-    telefono: '',
+    estado: 'Activa'
   })
 
   if (error) return { success: false, error: error.message }

@@ -1,4 +1,4 @@
-﻿import { ReactNode } from 'react'
+import { ReactNode } from 'react'
 import { AdminBottomNav } from '@/components/casasgaby/admin/AdminBottomNav'
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

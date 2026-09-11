@@ -1,71 +1,79 @@
 import re
 
-with open('src/components/casasgaby/admin/FinanzasClient.tsx', 'r', encoding='utf-8') as f:
+# 1. Patch page.tsx
+filepath = 'src/app/casasgaby/admin/finanzas/page.tsx'
+with open(filepath, 'r', encoding='utf8') as f:
     content = f.read()
 
-# Change default tab
+target = "const { data: pagos } = await db.schema('hospedaje').from('transacciones').select('*, reservas(nombre_cliente, propiedades(titulo))').eq('tipo', 'ingreso').order('created_at', { ascending: false })"
+replacement = "const { data: pagos } = await db.schema('hospedaje').from('transacciones').select('*, reservas(nombre_cliente, propiedades(titulo))').order('created_at', { ascending: false })"
+
+content = content.replace(target, replacement)
+with open(filepath, 'w', encoding='utf8') as f:
+    f.write(content)
+
+
+# 2. Patch FinanzasClient.tsx
+filepath = 'src/components/casasgaby/admin/FinanzasClient.tsx'
+with open(filepath, 'r', encoding='utf8') as f:
+    content = f.read()
+
+# Fix dineroEnCaja metric
 content = content.replace(
-    "const [activeTab, setActiveTab] = useState<'kpis'|'comisiones'>('kpis')",
-    "const [activeTab, setActiveTab] = useState<'ledger'|'kpis'|'comisiones'>('ledger')\n  const [ledgerSearch, setLedgerSearch] = useState('')\n  const [ledgerFilterMethod, setLedgerFilterMethod] = useState('Todos')\n  const [ledgerFilterDate, setLedgerFilterDate] = useState('Todo')"
+    """return acc + propPagos.reduce((sum, p) => sum + (Number(p.monto_mxn) || Number(p.monto) || 0), 0)""",
+    """return acc + propPagos.reduce((sum, p) => sum + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * (Number(p.monto_mxn) || Number(p.monto) || 0)), 0)"""
 )
 
-# Insert the Tab button
-old_tabs_html = r"""      <div className="space-y-6">
-        <div className="flex border-b border-gray-200">
-          <button
-            onClick=\{.*?\}
-            className=\{`py-3 px-6 text-sm font-medium border-b-2 transition-colors \$\{.*?\}
-            \}`}
-          >
-            Métricas y Rendimiento
-          </button>"""
+# Fix ingresosCobrados metric
+content = content.replace(
+    """ingresosCobrados += propPagos.reduce((acc, p) => acc + (Number(p.monto_mxn) || Number(p.monto) || 0), 0)""",
+    """ingresosCobrados += propPagos.reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * (Number(p.monto_mxn) || Number(p.monto) || 0)), 0)"""
+)
 
-new_tabs_html = """      <div className="space-y-6">
-        <div className="flex flex-wrap border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('ledger')}
-            className={`py-3 px-6 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'ledger' ? 'border-teal-600 text-teal-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Libro Mayor
-          </button>
-          <button
-            onClick={() => setActiveTab('kpis')}
-            className={`py-3 px-6 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'kpis' ? 'border-teal-600 text-teal-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Métricas y Rendimiento
-          </button>"""
+# Fix LEDGER LOGIC (totalHistorico)
+content = content.replace(
+    """const totalHistorico = pagos.reduce((acc, p) => acc + Number(p.monto_mxn || 0), 0)""",
+    """const totalHistorico = pagos.reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto_mxn || p.monto || 0)), 0)"""
+)
 
-# Using replace for safety (sometimes regex with newlines is finicky)
-if "Métricas y Rendimiento" in content:
-    content = content.replace("""<button
-            onClick={() => setActiveTab('kpis')}
-            className={`py-3 px-6 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'kpis' ? 'border-teal-600 text-teal-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Métricas y Rendimiento
-          </button>""", """<button
-            onClick={() => setActiveTab('ledger')}
-            className={`py-3 px-6 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'ledger' ? 'border-teal-600 text-teal-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Libro Mayor
-          </button>
-          <button
-            onClick={() => setActiveTab('kpis')}
-            className={`py-3 px-6 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'kpis' ? 'border-teal-600 text-teal-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Métricas y Rendimiento
-          </button>""")
-else:
-    # If using utf-8 encoding and the original file has 'MǸtricas', let's just search for it
-    pass
+# Fix ingresosMesActual
+content = content.replace(
+    """}).reduce((acc, p) => acc + Number(p.monto_mxn || 0), 0)""",
+    """}).reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto_mxn || p.monto || 0)), 0)"""
+)
 
-# We will just write a new script that generates a whole file or injects using a known marker.
+# Fix pagosEfectivo & pagosTransf - they should probably also account for refunds but the instruction specifically said "Ajusta la suma aritmética para que distinga entre ingresos y egresos: Si p.tipo === 'egreso' (...)"
+# To be safe and compliant, we can do it for all ledger reductions.
+content = content.replace(
+    """const usdAcumulado = pagos.filter(p => p.moneda === 'USD').reduce((acc, p) => acc + Number(p.monto || 0), 0)""",
+    """const usdAcumulado = pagos.filter(p => p.moneda === 'USD').reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto || 0)), 0)"""
+)
+content = content.replace(
+    """const pagosEfectivo = pagos.filter(p => p.metodo_pago?.includes('Efectivo')).reduce((acc, p) => acc + Number(p.monto_mxn || 0), 0)""",
+    """const pagosEfectivo = pagos.filter(p => p.metodo_pago?.includes('Efectivo')).reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto_mxn || p.monto || 0)), 0)"""
+)
+content = content.replace(
+    """const pagosTransf = pagos.filter(p => p.metodo_pago?.includes('Transferencia')).reduce((acc, p) => acc + Number(p.monto_mxn || 0), 0)""",
+    """const pagosTransf = pagos.filter(p => p.metodo_pago?.includes('Transferencia')).reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto_mxn || p.monto || 0)), 0)"""
+)
+
+# Fix table rendering
+target_tr = """                      <td className="px-4 py-3 text-right font-bold text-gray-900">
+                        {formatPrice(p.monto_mxn || p.monto)}
+                      </td>"""
+
+replacement_tr = """                      <td className={`px-4 py-3 text-right font-bold ${p.tipo === 'egreso' || p.categoria === 'reembolso' ? 'text-red-600' : 'text-gray-900'}`}>
+                        {p.tipo === 'egreso' || p.categoria === 'reembolso' ? (
+                          <div className="flex flex-col items-end">
+                            <span>-{formatPrice(p.monto_mxn || p.monto)}</span>
+                            <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded mt-1">Reembolso / Egreso</span>
+                          </div>
+                        ) : (
+                          formatPrice(p.monto_mxn || p.monto)
+                        )}
+                      </td>"""
+
+content = content.replace(target_tr, replacement_tr)
+
+with open(filepath, 'w', encoding='utf8') as f:
+    f.write(content)

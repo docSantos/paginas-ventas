@@ -1,16 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, ChevronDown, ChevronUp, DollarSign, Calendar as CalendarIcon, Save, History } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatPrice, formatDateEs, formatPhoneWithFlag, buildWaUrl, formatPhoneWithFlagObj } from '@/lib/utils'
 import { calculateStayTotal } from '@/lib/pricing'
-import { aprobarSolicitud, rechazarSolicitud, registrarAbono, registrarComisionPagada, actualizarFechasReserva, cancelarReserva, cancelarReservaConReembolso, actualizarTarifaBase, agregarAjusteReserva, eliminarAjusteReserva } from '@/app/casasgaby/admin/actions'
+import { aprobarSolicitud, rechazarSolicitud, registrarAbono, registrarComisionPagada, actualizarFechasReserva, cancelarReserva, cancelarReservaConReembolso, actualizarTarifaBase, agregarAjusteReserva, eliminarAjusteReserva, marcarCheckIn } from '@/app/casasgaby/admin/actions'
 import type { Solicitud, Reserva } from '@/types/casasgaby'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { FinanzasCard, calcularFinanzasReserva } from './FinanzasCard'
+
 
 const tieneConflictoEntreSolicitudes = (solicitudActual: any, todasLasSolicitudes: any[]) => {
   return todasLasSolicitudes.some((otra) => {
@@ -27,9 +30,11 @@ const tieneConflictoEntreSolicitudes = (solicitudActual: any, todasLasSolicitude
   });
 };
 
-export function ReservasClient({ solicitudes, reservas, servicios = [], tenantExtras = 5, tenantBase = 2.50 }: { solicitudes: Solicitud[], reservas: any[], servicios?: any[], tenantExtras?: number, tenantBase?: number }) {
+export function ReservasClient({ solicitudes, reservas, servicios = [], propiedades = [], tenantExtras = 5, tenantBase = 2.50 }: { solicitudes: Solicitud[], reservas: any[], servicios?: any[], propiedades?: any[], tenantExtras?: number, tenantBase?: number }) {
   const pendientes = solicitudes.filter(s => s.estado === 'Pendiente')
+  const reservasConfirmadas = reservas.filter((r: any) => !r.check_in_real_at)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const router = useRouter()
   
   // Aprobar Modal
   
@@ -111,22 +116,35 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
     }
   }
 
-  const handleAbrirAprobar = (solicitud: any) => {
+const handleAbrirAprobar = (solicitud: any) => {
     setAprobarModal({ open: true, solicitud })
-    const base = parseFloat(solicitud.costo_total || 0)
-    setPrecioBaseHospedaje(base)
-    setMontoAcordado(base.toString())
-    setMontoAnticipo((solicitud.monto_apartado || 0).toString())
-    setMetodoPago('transferencia_mxn')
-    
-    // Si la solicitud trae servicios solicitados pre-cargados
+
+    // 1. Mapear extras y calcular su subtotal acumulado inicial
+    let sumaExtras = 0
     const defaultExtras: Record<string, number> = {}
+
     if (solicitud.servicios_extra && Array.isArray(solicitud.servicios_extra)) {
       solicitud.servicios_extra.forEach((e: any) => {
-        defaultExtras[e.id] = e.qty || e.cantidad || 1
+        const servId = e.id || e.servicio_id
+        const qty = Number(e.qty || e.cantidad || 1)
+        if (servId) {
+          defaultExtras[servId] = qty
+          const servCatalogo = servicios.find((s: any) => s.id === servId)
+          const precioUnitario = Number(e.precio_base ?? servCatalogo?.precio_base ?? 0)
+          sumaExtras += precioUnitario * qty
+        }
       })
     }
     setExtraQuantities(defaultExtras)
+
+    // 2. Extraer el hospedaje base restando los extras del gran total
+    const granTotal = parseFloat(solicitud.costo_total || '0')
+    const baseReal = Math.max(0, granTotal - sumaExtras)
+
+    setPrecioBaseHospedaje(baseReal)
+    setMontoAcordado(granTotal.toString())
+    setMontoAnticipo((solicitud.monto_apartado || Math.round(granTotal * 0.5)).toString())
+    setMetodoPago('transferencia_mxn')
   }
   
   // Helper to recalculate total
@@ -238,12 +256,10 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
         // So we should pass `precioBaseHospedaje` instead of `montoAcordado` which is currently Base + Extras!
         // But what if the admin edited `montoAcordado` manually? We should compute `editedBase = currentMontoAcordado - sumaExtras`.
         const currentMonto = parseFloat(montoAcordado || '0');
-        const sumaExtras = extrasPayload.reduce((sum, e) => sum + (e?.monto || 0), 0);
-        const baseCalculada = currentMonto - sumaExtras;
-
+        
         const res = await aprobarSolicitud(
           aprobarModal.solicitud.id,
-          baseCalculada,
+          currentMonto,
           parseFloat(montoAnticipo || '0'),
           metodoPago,
           moneda,
@@ -312,6 +328,7 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
       await registrarComisionPagada(comisionModal.reserva.id, parseFloat(comisionMonto))
       setComisionModal({ open: false, reserva: null })
       setComisionMonto('')
+      router.refresh()
     } catch (e: any) {
       alert("Error al registrar comisión: " + e.message)
     }
@@ -337,21 +354,21 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
         </Button>
       </div>
 
-      {/* Reservas Activas */}
+{/* Reservas Activas */}
       <div>
-        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-3">
           <CheckCircle className="w-5 h-5 text-teal-600" />
-          Reservas Confirmadas ({reservas.length})
+          Reservas Confirmadas ({reservasConfirmadas.length})
         </h2>
-        
+
         <div className="grid gap-3">
-          {reservas.length === 0 ? (
+          {reservasConfirmadas.length === 0 ? (
             <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-500">
               No tienes reservas confirmadas.
             </div>
           ) : (
-            reservas.map(reserva => {
-              const r = reserva as any
+            reservasConfirmadas.map(reserva => {
+			  const r = reserva as any
               const isExpanded = !!expanded[r.id]
               const totalAcordado = r.monto_total_acordado || r.costo_total
               const saldo = totalAcordado - (r.monto_apartado || 0)
@@ -435,57 +452,49 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
                                 + Agregar Ajuste
                               </Button>
                             </div>
-                            <div className="bg-white p-3 rounded-lg border border-gray-200 mb-3 text-sm space-y-1.5">
-                              <div className="flex justify-between items-center">
-                                <span className="text-gray-600 flex items-center gap-1.5">
-                                  Hospedaje base: 
-                                  <button onClick={() => setEditTarifaModal({ open: true, reservaId: r.id, currentBase: r.tarifa_base || 0 })} className="text-gray-400 hover:text-teal-600">✏️</button>
-                                </span>
-                                <span className="font-medium text-gray-800">{formatPrice(r.tarifa_base || 0)}</span>
-                              </div>
-
-                              {(r.ajustes_reserva || []).filter((a: any) => a.tipo === 'cargo').map((c: any) => (
-                                <div key={c.id} className="flex justify-between items-center text-xs">
-                                  <span className="text-gray-500 pl-1 flex items-center gap-1">+ {c.concepto}</span>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium text-gray-700">{formatPrice(c.monto)}</span>
-                                    <button onClick={() => handleEliminarAjuste(c.id, r.id)} className="text-red-400 hover:text-red-600">×</button>
-                                  </div>
-                                </div>
-                              ))}
-
-                              {(r.ajustes_reserva || []).filter((a: any) => a.tipo === 'descuento').map((d: any) => (
-                                <div key={d.id} className="flex justify-between items-center text-xs">
-                                  <span className="text-gray-500 pl-1 flex items-center gap-1">- {d.concepto}</span>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium text-red-500">-{formatPrice(d.monto)}</span>
-                                    <button onClick={() => handleEliminarAjuste(d.id, r.id)} className="text-red-400 hover:text-red-600">×</button>
-                                  </div>
-                                </div>
-                              ))}
-
-                              <div className="flex justify-between border-t border-gray-100 pt-1.5 mt-1.5">
-                                <span className="text-gray-900 font-medium">Total Acordado:</span>
-                                <span className="font-bold">{formatPrice(totalAcordado)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Pagado (MXN):</span>
-                                <span className="font-semibold text-teal-600">{formatPrice(r.monto_apartado || 0)}</span>
-                              </div>
-                              <div className="flex justify-between pt-1 border-t border-gray-100 mt-1">
-                                <span className="text-gray-900 font-bold">Saldo Pendiente:</span>
-                                <span className={`font-bold ${liquidado ? 'text-green-600' : 'text-red-600'}`}>
-                                  {formatPrice(saldo)}
-                                </span>
-                              </div>
+                            <div className="bg-white p-3 rounded-lg border border-gray-200 mb-3 text-sm space-y-1.5 shadow-sm">
+                              <FinanzasCard reserva={r} onEditTarifa={(id, current) => setEditTarifaModal({ open: true, reservaId: id, currentBase: current })} />
                             </div>
-
                             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Comisión</h4>
                           <div className="bg-white p-3 rounded-lg border border-purple-200 mb-3 text-sm">
                             <div className="flex justify-between mb-1">
                               <span className="text-gray-600">Total Comisión:</span>
                               <span className="font-semibold text-purple-700">{formatPrice(r.monto_comision || 0)}</span>
                             </div>
+                            
+                            {r.comisiones && r.comisiones.length > 0 && (() => {
+                              const tBase = Number(r.tarifa_base || 0);
+                              const tAcordado = Number(r.monto_total_acordado || r.costo_total || r.tarifa_base || 0);
+                              const subExtras = Math.max(0, tAcordado - tBase);
+                              
+                              return (
+                                <details className="mb-2 text-xs group">
+                                  <summary className="font-medium text-purple-600 cursor-pointer list-none flex items-center gap-1 mt-0.5 select-none">
+                                    <span className="group-open:rotate-90 transition-transform">▸</span> Ver desglose
+                                  </summary>
+                                  <div className="pt-1.5 space-y-1 pl-3 border-l-2 border-purple-100 ml-1 mt-1">
+                                    <div className="flex justify-between text-gray-700">
+                                      <span className="flex-1 truncate pr-2">
+                                        Comisión Hospedaje ({tenantBase}%)
+                                      </span>
+                                      <span className="font-medium whitespace-nowrap">
+                                        {formatPrice(tBase * (tenantBase / 100))}
+                                      </span>
+                                    </div>
+                                    {subExtras > 0 && (
+                                      <div className="flex justify-between text-gray-700">
+                                        <span className="flex-1 truncate pr-2">
+                                          Comisión Extras ({tenantExtras}%)
+                                        </span>
+                                        <span className="font-medium whitespace-nowrap">
+                                          {formatPrice(subExtras * (tenantExtras / 100))}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </details>
+                              );
+                            })()}
                             <div className="flex justify-between mb-1">
                               <span className="text-gray-600">Comisión Pagada:</span>
                               <span className="font-semibold text-teal-600">{formatPrice(r.comision_pagada || 0)}</span>
@@ -533,7 +542,21 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
                               <CalendarIcon className="w-4 h-4 mr-1" /> Editar Fechas
                             </Button>
                             
-                            <Button 
+                            {(r.estado === 'Activa' && !r.check_in_real_at) && (
+                                <Button className="text-emerald-700 border-emerald-200 hover:bg-emerald-50" onClick={async () => {
+                                    if (confirm(`¿Marcar Check-in de ${r.nombre_cliente}? La reserva pasará al módulo In-House.`)) {
+                                      const res = await marcarCheckIn(r.id);
+                                      if (res && res.error) {
+                                        alert(res.error);
+                                      }
+                                    }
+                                  }}
+                                  size="sm" variant="outline"
+                                >
+                                  Check-in
+                                </Button>
+                              )}
+                              <Button 
                                 size="sm" 
                                 variant="outline"
                                 className="text-red-600 border-red-200 hover:bg-red-50 ml-auto"
@@ -1050,9 +1073,7 @@ export function ReservasClient({ solicitudes, reservas, servicios = [], tenantEx
                 onChange={e => setBloqueoModal({ ...bloqueoModal, propiedadId: e.target.value })}
               >
                 <option value="">-- Seleccionar propiedad --</option>
-                {Array.from(new Map(reservas.map((r: any) => [r.propiedades?.titulo, r.propiedad_id])).entries()).map(([titulo, pid]) => (
-                  <option key={String(pid)} value={String(pid)}>{titulo}</option>
-                ))}
+                {propiedades.map((p: any) => (<option key={String(p.id)} value={String(p.id)}>{p.titulo}</option>))}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">

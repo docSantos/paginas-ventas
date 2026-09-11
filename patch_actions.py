@@ -1,17 +1,37 @@
-import re
+import os
 
-with open('src/app/casasgaby/admin/actions.ts', 'r', encoding='utf-8') as f:
+filepath = 'src/app/casasgaby/admin/actions.ts'
+with open(filepath, 'r', encoding='utf-8') as f:
     content = f.read()
 
-pattern = r"""(notas: solicitud\.notas \|\| '',\s*estado: 'Activa'\s*\})"""
+target = """  const { error } = await db.schema('hospedaje').from('reservas').insert({
+    propiedad_id: propiedadId,
+    fecha_entrada: fechaEntrada,
+    fecha_salida: fechaSalida,
+    estado: motivo === 'mantenimiento' ? 'mantenimiento' : 'bloqueo',
+    nombre_cliente: `[BLOQUEO] ${motivo}`,
+    noches: Math.max(1, Math.ceil((new Date(fechaSalida).getTime() - new Date(fechaEntrada).getTime()) / (1000 * 60 * 60 * 24))),
+    monto_total_acordado: 0,
+    monto_apartado: 0,
+    telefono: '',
+  })"""
 
-replacement = r"""notas: solicitud.notas || '',
-      estado: 'Activa',
-      solicitada_en: solicitud.created_at,
-      confirmada_en: new Date().toISOString()
-    }"""
+replacement = """  const { error } = await db.schema('hospedaje').from('reservas').insert({
+    propiedad_id: propiedadId,
+    nombre_cliente: `[BLOQUEO] ${motivo}`,
+    telefono: '0000000000',
+    email: null,
+    fecha_entrada: fechaEntrada,
+    fecha_salida: fechaSalida,
+    costo_total: 0,
+    monto_apartado: 0,
+    estado: 'Activa'
+  })"""
 
-content = re.sub(pattern, replacement, content)
-
-with open('src/app/casasgaby/admin/actions.ts', 'w', encoding='utf-8') as f:
-    f.write(content)
+if target in content:
+    content = content.replace(target, replacement)
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(content)
+    print("actions.ts patched")
+else:
+    print("Target not found in actions.ts")
