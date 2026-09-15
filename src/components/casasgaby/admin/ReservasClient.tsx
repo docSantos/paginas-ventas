@@ -356,9 +356,8 @@ const handleAbrirAprobar = (solicitud: any) => {
             reservasConfirmadas.map(reserva => {
 			  const r = reserva as any
               const isExpanded = !!expanded[r.id]
-              const totalAcordado = r.monto_total_acordado || r.costo_total
-              const saldo = totalAcordado - (r.monto_apartado || 0)
-              const liquidado = saldo <= 0
+              const { saldoPendiente: saldo } = calcularFinanzasReserva(r)
+              const liquidado = saldo <= 0.5
 
               return (
                 <div key={r.id} className="bg-white rounded-xl border border-teal-200 shadow-sm overflow-hidden transition-all">

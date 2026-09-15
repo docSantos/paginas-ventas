@@ -45,3 +45,26 @@ export function isSupabaseConfigured(): boolean {
     key !== 'your-supabase-anon-key'
   )
 }
+
+/**
+ * Cliente con Service Role Key (Bypass RLS).
+ * ADVERTENCIA: Usar solo en Server Actions, Endpoints privados o scripts de diagnóstico.
+ * NUNCA exponer al cliente.
+ */
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
+export function createAdminClient() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Falta SUPABASE_SERVICE_ROLE_KEY en las variables de entorno.')
+  }
+  return createSupabaseClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  )
+}

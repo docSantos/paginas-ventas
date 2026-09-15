@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { registrarPagoComisionTabla, aplicarSaldoAFavorComision, registrarPagoComisionLote } from '@/app/casasgaby/admin/actions'
 import { formatPrice, formatDateEs } from '@/lib/utils'
+import { calcularFinanzasReserva } from './FinanzasCard'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -132,13 +133,11 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
       const dineroEnCaja = dineroIngresadoBruto - dineroReembolsado;
       
       // 3. Saldo por Cobrar (Saldos pendientes reales)
-      // Suma directa del saldo pendiente (Costo total - Pagado) SOLO si es > 0, de reservas activas/confirmadas
+      // Suma directa del saldo pendiente usando calcularFinanzasReserva sobre reservas activas/confirmadas
       const cuentasPorCobrar = reservasVigentes.reduce((acc, r) => {
-        const total = Number(r.monto_total_acordado) || Number(r.costo_total) || 0;
-        const cobradoDeEstaReserva = pagos
-          .filter(p => p.reserva_id === r.id)
-          .reduce((sum, p) => sum + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * (Number(p.monto_mxn) || Number(p.monto) || 0)), 0);
-        const saldoPendiente = Math.max(0, total - cobradoDeEstaReserva);
+        const transaccionesReserva = pagos.filter(p => p.reserva_id === r.id);
+        const reservaConTransacciones = { ...r, transacciones: transaccionesReserva };
+        const { saldoPendiente } = calcularFinanzasReserva(reservaConTransacciones);
         return acc + saldoPendiente;
       }, 0);
   
