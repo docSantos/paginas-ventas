@@ -39,7 +39,9 @@ const { data: propiedades } = await supabase.schema('hospedaje').from('propiedad
     .eq('estado', 'Activa')
     .gte('fecha_salida', hoyStr)
     .order('fecha_entrada', { ascending: true })
-	
+
+  // El script temporal ha sido removido permanentemente.
+
   const solicitudIds = (reservas || []).map((r: any) => r.solicitud_id).filter(Boolean);
   let solicitudesMap = new Map();
   

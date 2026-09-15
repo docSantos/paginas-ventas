@@ -11,42 +11,48 @@ import type { Propiedad } from '@/types/casasgaby'
 interface PropertyCardProps {
   propiedad: Propiedad
   serviciosExtra?: string[]
+  priority?: boolean
 }
 
 // Íconos de amenidades populares
 const AMENIDAD_ICONS: Record<string, string> = {
-  'alberca': '🏊',
+  'alberca': '🏊‍♂️',
   'wifi': '📶',
   'cocina': '🍳',
   'estacionamiento': '🚗',
-  'bbq': '🔥',
+  'bbq': '🥩',
   'jacuzzi': '🛁',
-  'chimenea': '🪵',
-  'terraza': '🌿',
+  'chimenea': '🔥',
+  'terraza': '🌇',
 }
 
 function getAmenidadIcon(amenidad: string): string {
   const key = Object.keys(AMENIDAD_ICONS).find(k =>
     amenidad.toLowerCase().includes(k)
   )
-  return key ? AMENIDAD_ICONS[key] : '✓'
+  return key ? AMENIDAD_ICONS[key] : '✨'
 }
 
-export function PropertyCard({ propiedad, serviciosExtra = [] }: PropertyCardProps) {
+export function PropertyCard({ propiedad, serviciosExtra = [], priority = false }: PropertyCardProps) {
   const fotoUrl = propiedad.fotos?.[0] ?? null
   const amenidadesPreview = propiedad.amenidades.slice(0, 3)
 
   return (
     <Card className="group transition-shadow hover:shadow-md">
       {/* Imagen */}
-      <div className="relative h-48 bg-gradient-to-br from-teal-100 to-teal-200 overflow-hidden">
+      <div 
+        className="relative w-full overflow-hidden rounded-t-xl bg-gradient-to-br from-teal-100 to-teal-200"
+        style={{ position: 'relative', width: '100%', height: '240px', overflow: 'hidden', display: 'block' }}
+      >
         {fotoUrl ? (
           <Image
             src={fotoUrl}
             alt={propiedad.titulo}
             fill
+            priority={priority}
             className="object-cover group-hover:scale-105 transition-transform duration-300"
             sizes="(max-width: 640px) 100vw, 50vw"
+            style={{ objectFit: 'cover' }}
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-teal-400">

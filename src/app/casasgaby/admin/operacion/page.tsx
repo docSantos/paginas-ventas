@@ -22,7 +22,7 @@ export default async function OperacionPage() {
   // 1. Obtener reservas activas
   const { data: reservas } = await supabase
     .schema('hospedaje').from('reservas')
-    .select(`*, propiedades ( id, titulo ), transacciones (*)`)
+    .select(`*, propiedades ( id, titulo, precio_por_noche, precio_por_semana, precio_por_mes ), transacciones (*)`)
     .eq('estado', 'Activa')
     .order('fecha_entrada', { ascending: true })
 

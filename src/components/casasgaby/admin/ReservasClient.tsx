@@ -8,11 +8,12 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatPrice, formatDateEs, formatPhoneWithFlag, buildWaUrl, formatPhoneWithFlagObj } from '@/lib/utils'
 import { calculateStayTotal } from '@/lib/pricing'
-import { aprobarSolicitud, rechazarSolicitud, registrarAbono, registrarComisionPagada, actualizarFechasReserva, cancelarReserva, cancelarReservaConReembolso, actualizarTarifaBase, agregarAjusteReserva, eliminarAjusteReserva, marcarCheckIn } from '@/app/casasgaby/admin/actions'
+import { aprobarSolicitud, rechazarSolicitud, registrarAbono, registrarComisionPagada, cancelarReserva, cancelarReservaConReembolso, actualizarTarifaBase, agregarAjusteReserva, eliminarAjusteReserva, marcarCheckIn } from '@/app/casasgaby/admin/actions'
 import type { Solicitud, Reserva } from '@/types/casasgaby'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { FinanzasCard, calcularFinanzasReserva } from './FinanzasCard'
+import { ModalModificarFechas } from './modals/ModalModificarFechas'
 
 
 const tieneConflictoEntreSolicitudes = (solicitudActual: any, todasLasSolicitudes: any[]) => {
@@ -137,13 +138,22 @@ const handleAbrirAprobar = (solicitud: any) => {
     }
     setExtraQuantities(defaultExtras)
 
-    // 2. Extraer el hospedaje base restando los extras del gran total
-    const granTotal = parseFloat(solicitud.costo_total || '0')
-    const baseReal = Math.max(0, granTotal - sumaExtras)
+    // 2. Extraer el hospedaje base calculando dinámicamente según la estancia
+    let baseReal = 0;
+    if (solicitud.propiedades) {
+      const fEnt = new Date(solicitud.fecha_entrada + 'T12:00:00');
+      const fSal = new Date(solicitud.fecha_salida + 'T12:00:00');
+      const noches = Math.max(1, Math.round((fSal.getTime() - fEnt.getTime()) / (1000 * 60 * 60 * 24)));
+      baseReal = calculateStayTotal(noches, solicitud.propiedades.precio_por_noche, solicitud.propiedades.precio_por_semana, solicitud.propiedades.precio_por_mes).total;
+    } else {
+      const granTotal = parseFloat(solicitud.costo_total || '0')
+      baseReal = Math.max(0, granTotal - sumaExtras);
+    }
 
+    const granTotalCalculado = baseReal + sumaExtras;
     setPrecioBaseHospedaje(baseReal)
-    setMontoAcordado(granTotal.toString())
-    setMontoAnticipo((solicitud.monto_apartado || Math.round(granTotal * 0.5)).toString())
+    setMontoAcordado(granTotalCalculado.toString())
+    setMontoAnticipo((solicitud.monto_apartado || Math.round(granTotalCalculado * 0.5)).toString())
     setMetodoPago('transferencia_mxn')
   }
   
@@ -295,30 +305,6 @@ const handleAbrirAprobar = (solicitud: any) => {
       setAbonoMonto('')
     } catch (e: any) {
       alert("Error al registrar abono: " + e.message)
-    }
-  }
-
-  const handleGuardarFechas = async () => {
-    if (!fechasModal.reserva || !fEntrada || !fSalida) return
-    const prop = fechasModal.reserva.propiedades
-    if (!prop) return
-
-    const start = new Date(fEntrada + 'T12:00:00')
-    const end = new Date(fSalida + 'T12:00:00')
-    const noches = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)))
-
-    const { total } = calculateStayTotal(
-      noches,
-      prop.precio_por_noche,
-      prop.precio_por_semana,
-      prop.precio_por_mes
-    )
-
-    try {
-      await actualizarFechasReserva(fechasModal.reserva.id, prop.id, fEntrada, fSalida, total)
-      setFechasModal({ open: false, reserva: null })
-    } catch (e) {
-      alert("Error al actualizar fechas")
     }
   }
 
@@ -553,7 +539,7 @@ const handleAbrirAprobar = (solicitud: any) => {
                                   }}
                                   size="sm" variant="outline"
                                 >
-                                  Check-in
+                                  Adelantar check-in
                                 </Button>
                               )}
                               <Button 
@@ -748,36 +734,16 @@ const handleAbrirAprobar = (solicitud: any) => {
       </Dialog>
 
       {/* Modal Fechas */}
-      <Dialog open={fechasModal.open} onOpenChange={(o) => setFechasModal({ open: o, reserva: fechasModal.reserva })}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Fechas</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium block mb-1">Llegada</label>
-                <Input type="date" value={fEntrada} onChange={e => setFEntrada(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Salida</label>
-                <Input type="date" value={fSalida} onChange={e => setFSalida(e.target.value)} />
-              </div>
-            </div>
-            <p className="text-xs text-gray-500">
-              * Nota: Si cambias las fechas, el sistema recalculará el Total base, pero tendrás que ajustarlo manualmente como "Total Acordado" si es necesario.
-            </p>
-            <div className="flex gap-3 pt-2">
-              <Button variant="outline" onClick={() => setFechasModal({ open: false, reserva: null })} className="flex-1">
-                Cancelar
-              </Button>
-              <Button onClick={handleGuardarFechas} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
-                <Save className="w-4 h-4 mr-2" /> Guardar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ModalModificarFechas
+        open={fechasModal.open}
+        onClose={() => setFechasModal({ open: false, reserva: null })}
+        reserva={fechasModal.reserva}
+        modo="completo"
+        onSuccess={() => {
+          setFechasModal({ open: false, reserva: null })
+          router.refresh()
+        }}
+      />
 
       {/* Modal Comision */}
       <Dialog open={comisionModal.open} onOpenChange={(o) => setComisionModal({ open: o, reserva: comisionModal.reserva })}>

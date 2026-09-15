@@ -102,9 +102,27 @@ export function PropertyDetailClient({ propiedad, isDemo = false, reservas = [],
   const [fechaEntrada, setFechaEntrada] = useState('')
   const [fechaSalida, setFechaSalida] = useState('')
   const [huespedes, setHuespedes] = useState(1)
-  const [selectedExtras, setSelectedExtras] = useState<Record<string, any>>({})
+  const [selectedExtras, setSelectedExtras] = useState<{ [key: string]: { activo: boolean; qty?: number; trayecto?: string, ida?: boolean, vuelta?: boolean } }>({})
   
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  useEffect(() => {
+    if (servicios && servicios.length > 0) {
+      const limpiezaService = servicios.find(s => (s.nombre || '').toLowerCase().includes('limpieza'));
+      if (limpiezaService) {
+        setSelectedExtras(prev => {
+          if (!prev[limpiezaService.id]) {
+            return {
+              ...prev,
+              [limpiezaService.id]: { activo: true, qty: 1 }
+            };
+          }
+          return prev;
+        });
+      }
+    }
+  }, [servicios]);
+
   const [formData, setFormData] = useState({ nombre: '', telefono: '', correo: '' })
   const [lada, setLada] = useState('52')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -523,9 +541,16 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
                 Personaliza tu estancia con servicios extra
               </label>
               <div className="space-y-3">
-                {servicios.map((serv: any) => {
+                {[...servicios].sort((a: any, b: any) => {
+                  const isALimpieza = (a.nombre || '').toLowerCase().includes('limpieza');
+                  const isBLimpieza = (b.nombre || '').toLowerCase().includes('limpieza');
+                  if (isALimpieza && !isBLimpieza) return -1;
+                  if (!isALimpieza && isBLimpieza) return 1;
+                  return 0;
+                }).map((serv: any) => {
                   const state = selectedExtras[serv.id] || {};
                   const isSelected = !!state.activo;
+                  const isLimpieza = (serv.nombre || '').toLowerCase().includes('limpieza');
                   
                   return (
                     <div key={serv.id} className={`p-3 border rounded-xl flex flex-col gap-3 transition-colors ${isSelected ? 'bg-teal-50 border-teal-200' : 'bg-white border-gray-200'}`}>
@@ -533,9 +558,11 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
                         {serv.tipo_tarifa !== 'por_trayecto' && (
                           <input 
                             type="checkbox"
-                            className="mt-1 rounded text-teal-600 focus:ring-teal-500"
+                            className={`mt-1 rounded text-teal-600 focus:ring-teal-500 ${isLimpieza ? 'hidden' : ''}`}
                             checked={isSelected}
+                            readOnly={isLimpieza}
                             onChange={(e) => {
+                              if (isLimpieza) return;
                               setSelectedExtras((prev: any) => ({
                                 ...prev,
                                 [serv.id]: { 
@@ -547,7 +574,7 @@ Anticipo (50%): ${formatPrice(cotizacion.anticipo)}
                             }}
                           />
                         )}
-                                                <div className="flex-1">
+                        <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900">{serv.nombre}</p>
                           <p className="text-xs text-gray-500">
                             {serv.tipo_tarifa === 'por_dia' ? 'Por día' : 

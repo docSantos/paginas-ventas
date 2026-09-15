@@ -1,4 +1,4 @@
-﻿import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export async function proxy(request: NextRequest) {
@@ -10,11 +10,6 @@ export async function proxy(request: NextRequest) {
 
   // Solo verificar autenticación en rutas que empiecen por /casasgaby/admin
   if (!request.nextUrl.pathname.startsWith('/casasgaby/admin')) {
-    return response
-  }
-
-  // Permitir acceso libre a la página de login
-  if (request.nextUrl.pathname === '/casasgaby/admin/login') {
     return response
   }
 
@@ -72,11 +67,18 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
+  const isLoginPage = request.nextUrl.pathname === '/casasgaby/admin/login'
 
-  if (!user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/casasgaby/admin/login'
-    return NextResponse.redirect(url)
+  if (!user && !isLoginPage) {
+    // Usamos request.url en lugar de nextUrl.clone() para evitar bucles de redirección
+    const loginUrl = new URL('/casasgaby/admin/login', request.url)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  if (user && isLoginPage) {
+    // Si ya tiene sesión y entra al login, lo redirigimos directo
+    const panelUrl = new URL('/casasgaby/admin/operacion', request.url)
+    return NextResponse.redirect(panelUrl)
   }
 
   return response

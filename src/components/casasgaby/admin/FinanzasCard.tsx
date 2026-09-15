@@ -30,7 +30,8 @@ export function FinanzasCard({ reserva: r, onEditTarifa }: { reserva: any, onEdi
       return {
         nombre: e.nombre || e.servicio,
         qty: q,
-        monto: q * p
+        monto: q * p,
+        comision: e.porcentaje_comision
       }
     })]
   } else if (r.solicitudes && Array.isArray(r.solicitudes.servicios_extra)) {
@@ -40,7 +41,8 @@ export function FinanzasCard({ reserva: r, onEditTarifa }: { reserva: any, onEdi
       return {
         nombre: e.nombre || e.servicio,
         qty: q,
-        monto: q * p
+        monto: q * p,
+        comision: e.porcentaje_comision
       }
     })]
   }
@@ -49,7 +51,8 @@ export function FinanzasCard({ reserva: r, onEditTarifa }: { reserva: any, onEdi
     itemsEncontrados = [...itemsEncontrados, ...r.ajustes_reserva.map((a: any) => ({
       nombre: a.tipo === 'cargo' ? `+ ${a.concepto || a.descripcion}` : `- ${a.concepto || a.descripcion}`,
       qty: 1,
-      monto: a.tipo === 'cargo' ? Number(a.monto || 0) : -Number(a.monto || 0)
+      monto: a.tipo === 'cargo' ? Number(a.monto || 0) : -Number(a.monto || 0),
+      comision: a.porcentaje_comision
     }))]
   }
 
@@ -68,33 +71,31 @@ export function FinanzasCard({ reserva: r, onEditTarifa }: { reserva: any, onEdi
       </div>
       
       {subtotalExtras > 0 && (
-         <div className="py-1">
-           <div className="flex justify-between items-center text-sm">
-             <span className="text-gray-600">Servicios extras:</span>
-             <span className="font-semibold text-gray-800">
-               ${subtotalExtras.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-             </span>
-           </div>
-           <button
-             type="button"
-             onClick={() => setShowExtras(!showExtras)}
-             className="text-xs text-teal-600 hover:text-teal-700 hover:underline flex items-center gap-1 mt-0.5"
-           >
-             {showExtras ? '▴ Ocultar desglose' : '▾ Ver desglose de extras'}
-           </button>
-           {showExtras && (
-             <div className="mt-1.5 p-2 bg-gray-50 rounded border border-gray-200 text-xs space-y-1">
-               {listaItemsExtras.map((item: any, idx: number) => (
-                 <div key={idx} className="flex justify-between text-gray-700">
-                   <span>{item.qty ? `${item.qty}x ` : ''}{item.nombre}</span>
-                   <span className="font-medium">
-                     ${Number(item.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                   </span>
-                 </div>
-               ))}
-             </div>
-           )}
-         </div>
+      <div className="flex flex-col mb-1 border-b border-gray-100 pb-2">
+        <div className="flex justify-between items-center">
+          <span className="text-gray-600">Servicios extras:</span>
+          <span className="font-medium text-gray-800">{formatPrice(subtotalExtras)}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowExtras(!showExtras)}
+          className="text-xs text-teal-600 hover:text-teal-700 hover:underline flex items-center gap-1 mt-0.5 w-fit"
+        >
+          {showExtras ? '▾ Ocultar desglose' : '▸ Ver desglose de extras'}
+        </button>
+        {showExtras && (
+          <div className="mt-1.5 p-2 bg-gray-50 rounded border border-gray-200 text-xs space-y-1">
+            {listaItemsExtras.map((item: any, idx: number) => (
+              <div key={idx} className="flex justify-between text-gray-700">
+                <span>{item.qty ? `${item.qty}x ` : ''}{item.nombre} {item.comision !== undefined && <span className="text-gray-400">({item.comision}%)</span>}</span>
+                <span className="font-medium">
+                  ${Number(item.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
        )}
 
       <div className="flex justify-between border-t border-gray-100 pt-1.5 mt-1.5">

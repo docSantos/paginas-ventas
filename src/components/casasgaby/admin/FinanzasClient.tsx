@@ -108,26 +108,52 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
   const totalNetoATransferir = Math.max(0, totalComisionPendiente - saldoAFavor);
 
 
-  const kpis = useMemo(() => {
-    // 1. Total Proyectado de Reservas
-    const totalProyectado = reservas.reduce((acc, r) => acc + (Number(r.monto_total_acordado) || Number(r.costo_total) || 0), 0)
-    
-    // 2. Dinero Real en Caja (Total cobrado en MXN de transacciones)
-    const dineroEnCaja = reservas.reduce((acc, r) => {
-        const propPagos = pagos.filter(p => p.reserva_id === r.id)
-        return acc + propPagos.reduce((sum, p) => sum + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * (Number(p.monto_mxn) || Number(p.monto) || 0)), 0)
-      }, 0)
-    
-    // 3. Saldo por Cobrar (Saldos pendientes)
-    const cuentasPorCobrar = totalProyectado - dineroEnCaja
-
-    // 4. Comisiones
-    const totalComisiones = reservas.reduce((acc, r) => acc + Number(r.monto_comision || 0), 0)
-    const comisionesPagadas = reservas.reduce((acc, r) => acc + Number(r.comision_pagada || 0), 0)
-    const comisionesPendientes = totalComisiones - comisionesPagadas
-
-    return { totalProyectado, dineroEnCaja, cuentasPorCobrar, totalComisiones, comisionesPagadas, comisionesPendientes }
-  }, [reservas, pagos])
+    const kpis = useMemo(() => {
+      // 1. Total Proyectado de Reservas (Solo Confirmadas y Activas)
+      const reservasVigentes = reservas.filter(r => ['Confirmada', 'Activa'].includes(r.estado) && !r.check_out_real_at)
+      
+      const totalProyectado = reservasVigentes.reduce((acc, r) => acc + (Number(r.monto_total_acordado) || Number(r.costo_total) || 0), 0)
+      
+      // 2. Dinero Real en Caja (Solo histórico neto, o solo de vigentes? La métrica original sumaba 'reservas'. Ahora sumamos todos los pagos globales para coincidir con Histórico, o solo vigentes? El prompt dice: "Total Proyectado desfasado... si una reserva es Completada no debe computar como proyección". Para Dinero Cobrado, sumamos TODOS los pagos para que refleje la realidad en caja de ese grupo, o lo calculamos sobre la tabla transacciones. Mantendremos el cálculo sobre las reservasVigentes si es "Dinero Cobrado de reservas activas", pero para que el histórico no se caiga, lo haremos sobre todas las reservas en caso de que Dinero Cobrado sea global. O mejor, sobre 'pagos' directo).
+      
+      let dineroIngresadoBruto = 0;
+      let dineroReembolsado = 0;
+      
+      // Calculemos los pagos de las reservas vigentes (o globales si se requiere. La UI dice "Anticipos y abonos recibidos". Originalmente iteraba sobre 'reservas', que eran 'Activa').
+      // Para no perder dinero histórico, sumaremos todos los pagos.
+      pagos.forEach(p => {
+        const monto = Number(p.monto_mxn) || Number(p.monto) || 0;
+        if (p.tipo === 'egreso' || p.categoria === 'reembolso') {
+          dineroReembolsado += monto;
+        } else {
+          dineroIngresadoBruto += monto;
+        }
+      });
+      const dineroEnCaja = dineroIngresadoBruto - dineroReembolsado;
+      
+      // 3. Saldo por Cobrar (Saldos pendientes reales)
+      // Suma directa del saldo pendiente (Costo total - Pagado) SOLO si es > 0, de reservas activas/confirmadas
+      const cuentasPorCobrar = reservasVigentes.reduce((acc, r) => {
+        const total = Number(r.monto_total_acordado) || Number(r.costo_total) || 0;
+        const cobradoDeEstaReserva = pagos
+          .filter(p => p.reserva_id === r.id)
+          .reduce((sum, p) => sum + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * (Number(p.monto_mxn) || Number(p.monto) || 0)), 0);
+        const saldoPendiente = Math.max(0, total - cobradoDeEstaReserva);
+        return acc + saldoPendiente;
+      }, 0);
+  
+      // 4. Comisiones - Fuente de verdad: hospedaje.comisiones
+      const comisionesActivas = (comisiones || []).filter(c => c.estado_pago !== 'cancelada_con_saldo_a_favor')
+      const totalComisiones = comisionesActivas.length > 0
+        ? comisionesActivas.reduce((acc, c) => acc + Number(c.monto_comision || 0), 0)
+        : reservasVigentes.reduce((acc, r) => acc + Number(r.monto_comision || 0), 0)
+      const comisionesPagadas = comisionesActivas.length > 0
+        ? comisionesActivas.reduce((acc, c) => acc + Number(c.monto_pagado || 0), 0)
+        : reservasVigentes.reduce((acc, r) => acc + Number(r.comision_pagada || 0), 0)
+      const comisionesPendientes = totalComisiones - comisionesPagadas
+  
+      return { totalProyectado, dineroEnCaja, dineroIngresadoBruto, dineroReembolsado, cuentasPorCobrar, totalComisiones, comisionesPagadas, comisionesPendientes }
+    }, [reservas, pagos, comisiones])
 
   // Opportunity Cost Calculations
   const metrics = useMemo(() => {
@@ -525,12 +551,23 @@ const pagosEfectivo = pagos.filter(p => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
               <PiggyBank className="w-4 h-4 text-green-600" />
-              Dinero Cobrado (MXN)
+              Dinero Cobrado Neto (MXN)
             </CardTitle>
           </CardHeader>
           <CardContent className="overflow-hidden">
             <div className="text-2xl font-bold text-green-700">{formatPrice(kpis.dineroEnCaja)}</div>
-            <p className="text-xs text-gray-500 mt-1">Anticipos y abonos recibidos</p>
+            <div className="mt-2 space-y-1 text-[11px] text-gray-600">
+              <div className="flex justify-between">
+                <span>Ingresos Brutos:</span>
+                <span className="font-medium text-gray-900">{formatPrice(kpis.dineroIngresadoBruto)}</span>
+              </div>
+              {kpis.dineroReembolsado > 0 && (
+                <div className="flex justify-between text-red-600">
+                  <span>Reembolsos Emitidos:</span>
+                  <span className="font-medium">-{formatPrice(kpis.dineroReembolsado)}</span>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 

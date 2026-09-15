@@ -1,4 +1,4 @@
-﻿// src/app/casasgaby/page.tsx
+// src/app/casasgaby/page.tsx
 // Catálogo principal de casas vacacionales
 // Server Component — obtiene propiedades desde Supabase (o usa mock data en modo demo)
 import { PropertyCard } from "@/components/casasgaby/PropertyCard";
@@ -74,8 +74,13 @@ async function CatalogoContent() {
         </div>
       ) : (
         <div className="grid gap-4 px-4">
-          {propiedades.map((propiedad) => (
-            <PropertyCard key={propiedad.id} propiedad={propiedad} serviciosExtra={((propiedad as any).propiedad_servicios || []).filter((ps: any) => ps.disponible).map((ps: any) => ps.catalogo_servicios?.nombre).filter(Boolean)} />
+          {propiedades.map((propiedad, index) => (
+            <PropertyCard 
+              key={propiedad.id} 
+              propiedad={propiedad} 
+              serviciosExtra={((propiedad as any).propiedad_servicios || []).filter((ps: any) => ps.disponible).map((ps: any) => ps.catalogo_servicios?.nombre).filter(Boolean)} 
+              priority={index === 0}
+            />
           ))}
         </div>
       )}
@@ -83,9 +88,12 @@ async function CatalogoContent() {
   );
 }
 
+import { ErudaProvider } from "@/components/ErudaProvider";
+
 export default function CasasGabyPage() {
   return (
     <div className="space-y-4 py-4">
+      <ErudaProvider />
       {/* Barra de búsqueda (visual — funcional en Fase 2) */}
       <div className="px-4">
         <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-3 h-11 text-gray-400 cursor-pointer hover:bg-gray-200 transition-colors">

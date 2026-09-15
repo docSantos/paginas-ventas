@@ -1,13 +1,22 @@
-﻿import { Metadata } from 'next'
+import { Metadata } from 'next'
 import { LoginClient } from './LoginClient'
 import { Home } from 'lucide-react'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = {
   title: 'Login - Admin Casas Gaby',
 }
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const supabase = await createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+
+  if (session) {
+    redirect('/casasgaby/admin/operacion')
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md absolute top-4 left-4">

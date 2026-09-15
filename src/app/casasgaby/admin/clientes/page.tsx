@@ -17,13 +17,14 @@ export default async function ClientesPage() {
   // Fetch clientes with reservations and transactions
   const { data: clientes } = await supabase
     .schema('hospedaje').from('clientes')
-    .select('*, reservas(*, propiedades(titulo), transacciones(*)), transacciones(*)')
+    .select('*, reservas(*, propiedades(id, titulo, precio_por_noche, precio_por_semana, precio_por_mes), transacciones(*)), transacciones(*)')
     .order('codigo_numero', { ascending: true })
 
   // Fetch solicitudes para el embudo CRM
   const { data: solicitudes } = await supabase
-    .schema('hospedaje').from('solicitudes')
-    .select('*, propiedades(titulo)')
+    .schema('hospedaje')
+    .from('solicitudes')
+    .select('*, propiedades(id, titulo, precio_por_noche, precio_por_semana, precio_por_mes)')
     .order('created_at', { ascending: false })
 
   // Fetch reservas confirmadas para detección de colisiones en el CRM

@@ -9,6 +9,7 @@ import { formatPrice, formatDateEs, formatPhoneWithFlag, buildWaUrl, formatPhone
 import { actualizarCliente, fusionarClientes } from '@/app/casasgaby/admin/actions'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { ModalModificarFechas } from '@/components/casasgaby/admin/modals/ModalModificarFechas'
 
 interface Reserva {
   id: string
@@ -433,6 +434,7 @@ export default function ClientesClient({ clientes, solicitudes = [], reservasCon
 
 
 function CrmPipeline({ solicitudes, reservasConfirmadas = [], servicios = [] }: { solicitudes: any[], reservasConfirmadas?: any[], servicios?: any[] }) {
+  const router = useRouter()
   const stages = [
     { id: 'por_contactar', title: 'Por Contactar', color: 'bg-blue-100 text-blue-800 border-blue-200' },
     { id: 'en_seguimiento', title: 'En Seguimiento', color: 'bg-amber-100 text-amber-800 border-amber-200' },
@@ -473,6 +475,7 @@ function CrmPipeline({ solicitudes, reservasConfirmadas = [], servicios = [] }: 
   const [activeStage, setActiveStage] = useState('por_contactar')
   const [isMobile, setIsMobile] = useState(false)
   const [confirmModal, setConfirmModal] = useState<{ open: boolean, solicitud: any | null }>({ open: false, solicitud: null })
+  const [editarFechasModal, setEditarFechasModal] = useState<{ open: boolean, solicitud: any | null }>({ open: false, solicitud: null })
   const [confMoneda, setConfMoneda] = useState('MXN')
   const [confTc, setConfTc] = useState('16.00')
   const [confMetodo, setConfMetodo] = useState('Transferencia')
@@ -637,8 +640,24 @@ function CrmPipeline({ solicitudes, reservasConfirmadas = [], servicios = [] }: 
                 {s.estado === 'confirmada' && <option value="confirmada" disabled>Confirmada</option>}
               </select>
           </div>
+		  
+		  <Button
+  type="button"
+  size="sm"
+  variant="outline"
+  className="text-xs h-8 px-2 border-gray-300 text-gray-700 hover:bg-gray-100 flex items-center gap-1"
+  onClick={(e) => {
+    e.stopPropagation()
+    setEditarFechasModal({ open: true, solicitud: s })
+  }}
+>
+  📅 Cambiar Fechas
+</Button>
 
         {!isCerrada && !colision && (
+		
+		  
+		
           <Button
             size="sm"
             className="w-full mt-1 bg-teal-600 hover:bg-teal-700 text-white h-8 text-xs font-semibold"
@@ -801,10 +820,22 @@ function CrmPipeline({ solicitudes, reservasConfirmadas = [], servicios = [] }: 
                                 type="checkbox" 
                                 className="mt-1 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
                                 checked={isSel}
-                                onChange={(e) => {
-                                  const activo = e.target.checked;
-                                  setConfExtras({ ...confExtras, [srv.id]: { ...state, activo, ida: activo ? (state.ida || true) : state.ida } });
-                                }}
+                                  onChange={(e) => {
+                                    const activo = e.target.checked;
+                                    setConfExtras({ 
+                                      ...confExtras, 
+                                      [srv.id]: { 
+                                        ...state, 
+                                        id: srv.id,
+                                        nombre: srv.nombre,
+                                        precio_base: srv.precio_base,
+                                        tipo_tarifa: srv.tipo_tarifa,
+                                        activo, 
+                                        ida: activo ? (state.ida !== undefined ? state.ida : true) : state.ida,
+                                        qty: state.qty || 1
+                                      } 
+                                    });
+                                  }}
                               />
                               <div className="flex-1">
                                 <div className="flex justify-between items-start">
@@ -942,6 +973,19 @@ function CrmPipeline({ solicitudes, reservasConfirmadas = [], servicios = [] }: 
           )}
         </DialogContent>
       </Dialog>
+	  {/* Modal para Modificar Fechas CRM */}
+      {editarFechasModal.open && editarFechasModal.solicitud && (
+        <ModalModificarFechas
+          open={editarFechasModal.open}
+          onClose={() => setEditarFechasModal({ open: false, solicitud: null })}
+          solicitud={editarFechasModal.solicitud}
+          modo="crm"
+          onSuccess={() => {
+            setEditarFechasModal({ open: false, solicitud: null })
+            router.refresh()
+          }}
+        />
+      )}
     </>
   )
 }

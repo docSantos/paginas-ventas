@@ -1,4 +1,4 @@
-﻿// src/lib/supabase/server.ts
+// src/lib/supabase/server.ts
 // Cliente de Supabase para uso en Server Components, Server Actions y Route Handlers
 // Maneja cookies automáticamente para mantener la sesión del usuario
 

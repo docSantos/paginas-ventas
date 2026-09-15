@@ -1,4 +1,4 @@
-﻿// src/app/layout.tsx
+// src/app/layout.tsx
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
@@ -14,6 +14,17 @@ export const metadata: Metadata = {
     default: "Paginas Gaby",
   },
   description: "Plataforma de servicios y renta de casas vacacionales",
+  formatDetection: {
+    telephone: false,
+    date: false,
+    email: false,
+    address: false,
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Casas Gaby",
+  },
 };
 
 // Viewport mobile-first: controla el escalado en smartphones
@@ -22,12 +33,13 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   themeColor: "#0d9488", // teal-600
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className={`${geistSans.variable} h-full`}>
-      <body className="min-h-full bg-gray-50 antialiased">{children}</body>
+    <html lang="es" suppressHydrationWarning className={`${geistSans.variable} h-full`}>
+      <body suppressHydrationWarning className="min-h-full bg-gray-50 antialiased">{children}</body>
     </html>
   );
 }

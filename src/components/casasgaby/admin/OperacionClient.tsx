@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,11 +10,17 @@ import { formatPrice } from '@/lib/utils'
 import { FinanzasCard, calcularFinanzasReserva } from './FinanzasCard'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { marcarCheckIn, marcarCheckOut, liquidarSaldoRecepcion, checkOutAnticipado, revertirCheckOut, actualizarTarifaBase, agregarAjusteReserva, eliminarAjusteReserva } from '@/app/casasgaby/admin/actions'
+import { marcarCheckIn, marcarCheckOut, liquidarSaldoRecepcion, checkOutAnticipado, revertirCheckOut, actualizarTarifaBase, agregarAjusteReserva, eliminarAjusteReserva, pagarComisionInHouse } from '@/app/casasgaby/admin/actions'
+import { ModalModificarFechas } from './modals/ModalModificarFechas'
 import { useRouter } from 'next/navigation'
 
 export function OperacionClient({ reservas, servicios = [] }: { reservas: any[], servicios?: any[] }) {
   const [localReservas, setLocalReservas] = useState<any[]>(reservas)
+  
+  // Sync incoming props from router.refresh()
+  useEffect(() => {
+    setLocalReservas(reservas)
+  }, [reservas])
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [modalReserva, setModalReserva] = useState<any>(null)
   const [modalAnticipado, setModalAnticipado] = useState<any>(null)
@@ -29,6 +35,11 @@ export function OperacionClient({ reservas, servicios = [] }: { reservas: any[],
   const [editTarifaModal, setEditTarifaModal] = useState<{ open: boolean, reservaId: string, currentBase: number }>({ open: false, reservaId: '', currentBase: 0 })
   const [ajusteModal, setAjusteModal] = useState<{ open: boolean, reservaId: string }>({ open: false, reservaId: '' })
   const [ajusteData, setAjusteData] = useState({ tipo: 'catalogo', catalogoId: '', concepto: '', monto: '' })
+  const [comisionInHouseModal, setComisionInHouseModal] = useState<{ open: boolean; reserva: any | null }>({ open: false, reserva: null })
+  const [comisionMontoPago, setComisionMontoPago] = useState('')
+  const [comisionMetodo, setComisionMetodo] = useState('Efectivo MXN')
+  const [comisionLoading, setComisionLoading] = useState(false)
+  const [fechasModal, setFechasModal] = useState<{ open: boolean; reserva: any | null; modo: 'completo' | 'solo_salida' }>({ open: false, reserva: null, modo: 'solo_salida' })
 
   
   const router = useRouter()
@@ -92,6 +103,29 @@ export function OperacionClient({ reservas, servicios = [] }: { reservas: any[],
 
   
   
+  const handlePagarComisionInHouse = async () => {
+    if (!comisionInHouseModal.reserva || !comisionMontoPago) return
+    setComisionLoading(true)
+    try {
+      const res = await pagarComisionInHouse(
+        comisionInHouseModal.reserva.id,
+        parseFloat(comisionMontoPago),
+        comisionMetodo
+      )
+      if (!res.success) {
+        alert('Error al registrar pago: ' + res.error)
+      } else {
+        setComisionInHouseModal({ open: false, reserva: null })
+        setComisionMontoPago('')
+        router.refresh()
+      }
+    } catch (e: any) {
+      alert('Error: ' + e.message)
+    } finally {
+      setComisionLoading(false)
+    }
+  }
+
   const getSaldo = (r: any) => calcularFinanzasReserva(r).saldoPendiente;
 
   const arrivals = localReservas.filter(r => {
@@ -532,6 +566,31 @@ if (nochesEfectivas > nochesOriginales) nochesEfectivas = nochesOriginales
                           {saldo > 0.5 && (
                             <Button onClick={() => handleLiquidar(r)} disabled={loadingId === r.id + '-liquidar'} variant="outline" className="w-full border-amber-200 text-amber-700 hover:bg-amber-50 h-8 text-xs">
                               Liquidar o abonar
+                            </Button>
+                          )}
+                          {/* Modificar salida */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full h-8 text-xs text-blue-700 border-blue-200 hover:bg-blue-50"
+                            onClick={() => setFechasModal({ open: true, reserva: r, modo: 'solo_salida' })}
+                          >
+                            Modificar Salida
+                          </Button>
+                          {/* Pagar comisión en recepción */}
+                          {Number(r.monto_comision || 0) > Number(r.comision_pagada || 0) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full h-8 text-xs text-purple-700 border-purple-200 hover:bg-purple-50"
+                              onClick={() => {
+                                const saldoCom = Number(r.monto_comision || 0) - Number(r.comision_pagada || 0)
+                                setComisionMontoPago(saldoCom.toFixed(2))
+                                setComisionMetodo('Efectivo MXN')
+                                setComisionInHouseModal({ open: true, reserva: r })
+                              }}
+                            >
+                              Pagar Comisión ({formatPrice(Number(r.monto_comision || 0) - Number(r.comision_pagada || 0))})
                             </Button>
                           )}
                           <Button onClick={() => handleCheckOut(r)} disabled={loadingId === r.id} className={`w-full h-8 text-xs text-white shadow-sm ${r.fecha_salida > todayStr ? 'bg-slate-700 hover:bg-slate-800' : 'bg-gray-900 hover:bg-gray-800'}`}>
@@ -1105,6 +1164,68 @@ if (nochesEfectivas > nochesOriginales) nochesEfectivas = nochesOriginales
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* MODAL PAGAR COMISIÓN EN RECEPCIÓN */}
+      <Dialog open={comisionInHouseModal.open} onOpenChange={(o) => !o && setComisionInHouseModal({ open: false, reserva: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pagar Comisión — Recepción</DialogTitle>
+          </DialogHeader>
+          {comisionInHouseModal.reserva && (
+            <div className="space-y-4 py-2">
+              <div className="bg-purple-50 rounded-lg p-3 text-sm">
+                <p className="font-medium text-gray-800">{comisionInHouseModal.reserva.nombre_cliente}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Comisión total: {formatPrice(Number(comisionInHouseModal.reserva.monto_comision || 0))} ·
+                  Ya pagada: {formatPrice(Number(comisionInHouseModal.reserva.comision_pagada || 0))} ·
+                  Saldo: {formatPrice(Number(comisionInHouseModal.reserva.monto_comision || 0) - Number(comisionInHouseModal.reserva.comision_pagada || 0))}
+                </p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Monto a pagar (MXN)</label>
+                <Input
+                  type="number"
+                  value={comisionMontoPago}
+                  onChange={e => setComisionMontoPago(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Método de pago</label>
+                <select
+                  value={comisionMetodo}
+                  onChange={e => setComisionMetodo(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm focus:ring-2 focus:ring-teal-500"
+                >
+                  <option>Efectivo MXN</option>
+                  <option>Transferencia MXN</option>
+                </select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" onClick={() => setComisionInHouseModal({ open: false, reserva: null })} className="flex-1" disabled={comisionLoading}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handlePagarComisionInHouse}
+                  disabled={comisionLoading || !comisionMontoPago || parseFloat(comisionMontoPago) <= 0}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  {comisionLoading ? 'Registrando...' : 'Confirmar Pago'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL MODIFICAR FECHAS / EXTENDER ESTANCIA */}
+      <ModalModificarFechas
+        open={fechasModal.open}
+        onClose={() => setFechasModal({ open: false, reserva: null, modo: 'solo_salida' })}
+        reserva={fechasModal.reserva}
+        modo={fechasModal.modo}
+        onSuccess={() => router.refresh()}
+      />
 
     </div>
   )

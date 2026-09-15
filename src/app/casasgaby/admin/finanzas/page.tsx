@@ -16,8 +16,11 @@ export default async function FinanzasPage() {
   // Traer propiedades para calcular métricas base
   const { data: propiedades } = await db.schema('hospedaje').from('propiedades').select('*').eq('activa', true)
   
-  // Traer reservas confirmadas
-  const { data: reservas } = await db.schema('hospedaje').from('reservas').select('*').eq('estado', 'Activa')
+  // Traer reservas vigentes para proyecciones
+  const { data: reservas } = await db.schema('hospedaje').from('reservas')
+    .select('*')
+    .in('estado', ['Confirmada', 'Activa'])
+    .is('check_out_real_at', null)
 
   // Traer historial de pagos
   const { data: pagos } = await db.schema('hospedaje').from('transacciones').select('*, reservas(nombre_cliente, propiedades(titulo))').order('created_at', { ascending: false })

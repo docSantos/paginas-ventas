@@ -1,4 +1,4 @@
-﻿/*
+/*
 ================================================================================
 CÓDIGO ORIGINAL (DESACTIVADO / DEPRECADOS)
 ================================================================================
@@ -25,9 +25,19 @@ export default nextConfig;
 // CÓDIGO NUEVO (ACTIVO - Con soporte para acceso local desde celular / allowedDevOrigins)
 // ================================================================================
 import type { NextConfig } from "next";
+import withPWAInit from "@ducanh2912/next-pwa";
+
+const withPWA = withPWAInit({
+  dest: "public",
+  disable: process.env.NODE_ENV === "development",
+  register: true,
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+});
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['192.168.0.174', '192.168.0.174:3000'],
+  allowedDevOrigins: ['192.168.0.174', '192.168.0.174:3000', '*.loca.lt', '*.ngrok-free.dev'],
+  crossOrigin: 'anonymous',
   images: {
     remotePatterns: [
       {
@@ -40,4 +50,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);

@@ -76,12 +76,14 @@ export default async function PropiedadPage({
         propiedad = data
         isDemo = false
         
-        // 2. Cargar fechas ocupadas (Reservas Activas) para el calendario usando la Vista Segura
+        // 2. Cargar fechas ocupadas (Reservas Activas) para el calendario usando la tabla reservas
         const db = supabase as any
         const { data: reservas } = await db
-          .schema('hospedaje').from('vista_fechas_ocupadas')
+          .schema('hospedaje').from('reservas')
           .select('fecha_entrada, fecha_salida')
           .eq('propiedad_id', id)
+          .not('estado', 'in', '("Completada","Cancelada")')
+          .is('check_out_real_at', null)
           .order('fecha_entrada', { ascending: true })
           
         if (reservas) {
