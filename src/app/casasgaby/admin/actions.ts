@@ -566,7 +566,7 @@ export async function actualizarFechasReserva(reservaId: string, propiedadId: st
 }
 
 
-export async function aplicarSaldoAFavorComision(comisionActivaId: string, montoRequerido: number) {
+export async function aplicarSaldoAFavorComision(reservaId: string, montoRequerido: number) {
   if (!montoRequerido || isNaN(Number(montoRequerido)) || Number(montoRequerido) <= 0) throw new Error('El monto debe ser un número positivo mayor a cero.');
   const supabase = await createClient()
   const db = supabase as any
@@ -575,7 +575,7 @@ export async function aplicarSaldoAFavorComision(comisionActivaId: string, monto
 
   const { data: canceladas } = await db.schema('hospedaje').from('comisiones')
     .select('*')
-    .eq('estado_pago', 'cancelada').gt('monto_pagado', 0)
+    .eq('estado_pago', 'cancelada_con_saldo_a_favor').gt('monto_pagado', 0)
     .order('created_at', { ascending: true })
 
   if (!canceladas || canceladas.length === 0) throw new Error('No hay saldo a favor disponible')
@@ -587,9 +587,11 @@ export async function aplicarSaldoAFavorComision(comisionActivaId: string, monto
     const tomar = Math.min(disponible, remaining)
     
     const nuevoMontoCancelada = disponible - tomar
+    const estadoPago = nuevoMontoCancelada > 0 ? 'cancelada_con_saldo_a_favor' : 'cancelada'
+    
     await db.schema('hospedaje').from('comisiones').update({
       monto_pagado: nuevoMontoCancelada,
-      estado_pago: 'cancelada'
+      estado_pago: estadoPago
     }).eq('id', c.id)
 
     remaining -= tomar
@@ -597,17 +599,9 @@ export async function aplicarSaldoAFavorComision(comisionActivaId: string, monto
 
   const abonado = montoRequerido - remaining
 
-  const { data: activa } = await db.schema('hospedaje').from('comisiones').select('*').eq('id', comisionActivaId).maybeSingle()
-  if (activa) {
-    const nuevoMontoPagado = Number(activa.monto_pagado) + abonado
-    const estadoPago = nuevoMontoPagado >= Number(activa.monto_comision) ? 'pagado' : 'parcial'
-    
-    await db.schema('hospedaje').from('comisiones').update({
-      monto_pagado: nuevoMontoPagado,
-      estado_pago: estadoPago,
-      fecha_liquidacion: estadoPago === 'pagado' ? new Date().toISOString() : null,
-      notas: (activa.notas ? activa.notas + ' | ' : '') + `Se aplicó saldo a favor por ${abonado}`
-    }).eq('id', activa.id)
+  // Aplicar el abono a la reserva objetivo utilizando la logica centralizada
+  if (abonado > 0) {
+    await pagarComisionInHouse(reservaId, abonado, 'Saldo a Favor')
   }
 
   revalidatePath('/casasgaby/admin/finanzas')
@@ -1705,7 +1699,6 @@ export async function pagarComisionInHouse(
     monto: montoPago,
     moneda: 'MXN',
     tipo_cambio: 1,
-    monto_mxn: montoPago,
     metodo_pago: metodoPago,
     concepto: `Pago de comisión en recepción — ${reserva.nombre_cliente || ''}`,
     fecha: new Date().toISOString()
@@ -1732,16 +1725,56 @@ export async function pagarComisionInHouse(
   }
 
   // 4. Actualizar central.transacciones_comisiones si existe
-  const { data: tc } = await db.schema('central').from('transacciones_comisiones').select('id').eq('referencia_id', reservaId).maybeSingle()
+  const { data: tc } = await db.schema('central').from('transacciones_comisiones')
+    .select('id')
+    .eq('referencia_id', String(reservaId))
+    .eq('tenant_id', 'casasgaby')
+    .maybeSingle()
+
+  const estadoCentral = estadoComision === 'liquidada' ? 'pagado' : 'parcial'
+
   if (tc) {
-    const estadoCentral = estadoComision === 'liquidada' ? 'pagado' : 'parcial'
     await db.schema('central').from('transacciones_comisiones').update({ estado: estadoCentral }).eq('id', tc.id)
+  } else {
+    // Si no existe, crearlo
+    await db.schema('central').from('transacciones_comisiones').insert({
+      tenant_id: 'casasgaby',
+      origen_modulo: 'hospedaje',
+      referencia_id: String(reservaId),
+      monto_total: Number(reserva.monto_total_acordado || reserva.costo_total || 0),
+      monto_comision: Number(reserva.monto_comision || 0),
+      estado: estadoCentral
+    })
   }
 
   revalidatePath('/casasgaby/admin/operacion')
   revalidatePath('/casasgaby/admin/reservas')
   revalidatePath('/casasgaby/admin/finanzas')
-  return { success: true }
+  return { success: true, nuevoAcumulado, estadoComision }
+}
+
+export async function pagarComisionesLoteReservas(reservaIds: string[], metodo: string = 'Transferencia') {
+  if (!reservaIds || reservaIds.length === 0) return { success: false, error: 'No hay reservas seleccionadas.' }
+  
+  // No need to instantiate supabase client globally if we just call another action
+  try {
+    for (const rid of reservaIds) {
+      // For each, we only want to pay the exact remaining balance so we fetch it
+      const supabase = await createClient()
+      const { data: res } = await (supabase as any).schema('hospedaje').from('reservas').select('monto_comision, comision_pagada').eq('id', rid).maybeSingle()
+      if (!res) continue
+      const saldo = Number(res.monto_comision || 0) - Number(res.comision_pagada || 0)
+      if (saldo > 0) {
+        await pagarComisionInHouse(rid, saldo, metodo)
+      }
+    }
+    revalidatePath('/casasgaby/admin/operacion')
+    revalidatePath('/casasgaby/admin/reservas')
+    revalidatePath('/casasgaby/admin/finanzas')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Error en lote' }
+  }
 }
 
 export async function actualizarFechasSolicitudCRM(

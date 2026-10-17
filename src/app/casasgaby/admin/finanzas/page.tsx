@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { FinanzasClient } from '@/components/casasgaby/admin/FinanzasClient'
 
 export default async function FinanzasPage() {
@@ -11,22 +11,22 @@ export default async function FinanzasPage() {
     redirect('/casasgaby/admin/login')
   }
 
-  const db = supabase as any
+  // Usar admin client para bypass RLS que podría estar ocultando columnas de finanzas
+  const adminDb = createAdminClient() as any
 
   // Traer propiedades para calcular métricas base
-  const { data: propiedades } = await db.schema('hospedaje').from('propiedades').select('*').eq('activa', true)
+  const { data: propiedades } = await adminDb.schema('hospedaje').from('propiedades').select('*').eq('activa', true)
   
-  // Traer reservas vigentes para proyecciones
-  const { data: reservas } = await db.schema('hospedaje').from('reservas')
-    .select('*')
-    .in('estado', ['Confirmada', 'Activa'])
-    .is('check_out_real_at', null)
+  // Traer reservas vigentes para proyecciones y aquellas con comisiones pendientes/pasadas
+  const { data: reservas } = await adminDb.schema('hospedaje').from('reservas')
+    .select('*, monto_comision, comision_pagada, estado_comision, estado')
+    .neq('estado', 'Borrador')
 
   // Traer historial de pagos
-  const { data: pagos } = await db.schema('hospedaje').from('transacciones').select('*, reservas(nombre_cliente, propiedades(titulo))').order('created_at', { ascending: false })
+  const { data: pagos } = await adminDb.schema('hospedaje').from('transacciones').select('*, reservas(nombre_cliente, propiedades(titulo))').order('created_at', { ascending: false })
 
   // Traer comisiones
-  const { data: comisiones } = await db.schema('hospedaje').from('comisiones').select('*, propiedades(titulo), reservas(fecha_entrada, nombre_cliente)').order('created_at', { ascending: false })
+  const { data: comisiones } = await adminDb.schema('hospedaje').from('comisiones').select('*, propiedades(titulo), reservas(fecha_entrada, nombre_cliente)').order('created_at', { ascending: false })
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">

@@ -35,7 +35,7 @@ const { data: propiedades } = await supabase.schema('hospedaje').from('propiedad
 
   const { data: reservas } = await supabase
     .schema('hospedaje').from('reservas')
-    .select(`*, propiedades ( id, titulo, precio_por_noche, precio_por_semana, precio_por_mes ), ajustes_reserva (*), comisiones (*), transacciones (*)`)
+    .select(`*, propiedades ( id, titulo, precio_por_noche, precio_por_semana, precio_por_mes ), ajustes_reserva (*), comisiones (*), transacciones (*), historial_modificaciones (*)`)
     .eq('estado', 'Activa')
     .gte('fecha_salida', hoyStr)
     .order('fecha_entrada', { ascending: true })

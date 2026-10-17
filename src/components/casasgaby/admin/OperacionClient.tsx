@@ -5,8 +5,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { UserCheck, UserMinus, MessageCircle, MapPin, CalendarDays, Wallet, Clock, AlertTriangle, History, Undo2 } from 'lucide-react'
-import { formatPrice } from '@/lib/utils'
+import { UserCheck, UserMinus, MessageCircle, MapPin, CalendarDays, Wallet, Clock, AlertTriangle, History, Undo2, Mail, Phone, ArrowRight } from 'lucide-react'
+import { formatPrice, formatPhoneWithFlag, formatPhoneWithFlagObj, buildWaUrl } from '@/lib/utils'
 import { FinanzasCard, calcularFinanzasReserva } from './FinanzasCard'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -406,10 +406,7 @@ if (nochesEfectivas > nochesOriginales) nochesEfectivas = nochesOriginales
     }
   }
 
-  const buildWaUrl = (phone: string, text: string) => {
-    const cleanPhone = phone.replace(/\D/g, '')
-    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`
-  }
+
 
   return (
     <div className="space-y-8">
@@ -511,38 +508,55 @@ if (nochesEfectivas > nochesOriginales) nochesEfectivas = nochesOriginales
                   return (
                     <div key={r.id} className="p-4 sm:p-6 flex flex-col md:flex-row gap-6 justify-between hover:bg-gray-50 transition-colors">
                       {/* Izquierda: Info */}
-                      <div className="space-y-3 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-gray-900 text-lg">{r.nombre_cliente}</h3>
-                          {r.fecha_salida > todayStr && (
-                            <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
-                              Día {nochesTranscurridas} de {nochesTotales}
-                            </span>
-                          )}
-                          {r.fecha_salida === todayStr && (
-                            <span className="text-[10px] uppercase font-bold tracking-wider text-red-600 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <AlertTriangle className="w-3 h-3" /> Sale Hoy
-                            </span>
-                          )}
+                      <div className="space-y-4 flex-1">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-bold text-gray-900 text-lg">{r.nombre_cliente}</h3>
+                            {r.fecha_salida > todayStr && (
+                              <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
+                                Día {nochesTranscurridas} de {nochesTotales}
+                              </span>
+                            )}
+                            {r.fecha_salida === todayStr && (
+                              <span className="text-[10px] uppercase font-bold tracking-wider text-red-600 bg-red-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" /> Sale Hoy
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium text-teal-700">{r.propiedades?.titulo}</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Clock className="w-4 h-4 text-gray-400" /> 
+                            <span>In: <span className="font-medium">{format(checkInDate, 'dd MMM yy HH:mm', { locale: es })}</span></span>
+                            <ArrowRight className="w-3 h-3 text-gray-300" />
+                            <span>Out: <span className="font-medium">{format(parseISO(r.fecha_salida), 'dd MMM yy', { locale: es })}</span></span>
+                          </div>
                         </div>
-                        
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
-                          <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {r.propiedades?.titulo}</span>
-                          <span className="flex items-center gap-1 text-gray-600 font-medium">
-                            <Clock className="w-4 h-4" /> 
-                            In: {format(checkInDate, 'dd MMM yy HH:mm', { locale: es })} 
-                            {' -> '} 
-                            Out: {format(parseISO(r.fecha_salida), 'dd MMM yy', { locale: es })}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <a 
-                            href={`https://wa.me/${(r.telefono || '').replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(r.nombre_cliente)},%20esperamos%20que%20tu%20estancia%20sea%20excelente.`}
-                            target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md hover:bg-emerald-100"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" /> Contactar WhatsApp
-                          </a>
+
+                        {/* DETALLES DEL CLIENTE */}
+                        <div>
+                          <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Detalles del Cliente</h4>
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-800">{formatPhoneWithFlagObj((r as any).codigo_pais, r.telefono)}</span>
+                              <a 
+                                href={buildWaUrl((r as any).codigo_pais, r.telefono, `Hola ${r.nombre_cliente}, esperamos que tu estancia sea excelente.`)}
+                                target="_blank" rel="noreferrer"
+                                className="text-[10px] font-bold bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 px-2 py-0.5 rounded-full uppercase transition-colors flex items-center gap-1"
+                              >
+                                <MessageCircle className="w-3 h-3" /> WhatsApp
+                              </a>
+                            </div>
+                            {r.email && (
+                              <a href={`mailto:${r.email}`} className="text-sm text-gray-600 hover:text-teal-600 transition-colors flex items-center gap-1.5">
+                                <Mail className="w-3.5 h-3.5" /> {r.email}
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </div>
                       
@@ -550,15 +564,133 @@ if (nochesEfectivas > nochesOriginales) nochesEfectivas = nochesOriginales
                       <div className="w-full md:w-80 flex-shrink-0 flex flex-col gap-3">
                         <div className="flex justify-between items-center">
                           <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Finanzas</h4>
-                          <Button onClick={() => setAjusteModal({ open: true, reservaId: r.id })} variant="outline" size="sm" className="h-7 text-xs text-teal-700 bg-white border-teal-300 hover:bg-teal-50 hover:text-teal-800">
+                          <Button onClick={() => setAjusteModal({ open: true, reservaId: r.id })} variant="outline" size="sm" className="h-7 text-xs text-teal-700 bg-white border-teal-300 hover:bg-teal-50 hover:text-teal-800 transition-colors shadow-sm font-medium">
                             + Agregar Ajuste
                           </Button>
                         </div>
                         
                         <div className="bg-white p-3 rounded-lg border border-gray-200 text-sm space-y-1.5 shadow-sm">
                           <FinanzasCard reserva={r} onEditTarifa={(id, current) => setEditTarifaModal({ open: true, reservaId: id, currentBase: current })} />
+                        </div>
+
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Comisión</h4>
+                        <div className="bg-white p-3 rounded-lg border border-purple-200 text-sm">
+                          <div className="flex justify-between mb-1">
+                            <span className="text-gray-600">Total Comisión:</span>
+                            <span className="font-semibold text-purple-700">{formatPrice(r.monto_comision || 0)}</span>
+                          </div>
                           
+                          {(() => {
+                            const desgloseAjustes = r.ajustes_reserva && r.ajustes_reserva.length > 0;
+                            const tasaBase = r.porcentaje_comision || r.propiedades?.porcentaje_comision || 0;
+                            if (!desgloseAjustes && !tasaBase) return null;
+
+                            const tarifaBase = Number(r.tarifa_base || 0);
+                            const comisionBaseMonto = (tarifaBase * Number(tasaBase || 0)) / 100;
+
+                            return (
+                              <details className="mb-2 text-xs group">
+                                <summary className="font-medium text-purple-600 cursor-pointer list-none flex items-center gap-1 mt-0.5 select-none">
+                                  <span className="group-open:rotate-90 transition-transform">▸</span> Ver desglose
+                                </summary>
+                                <div className="pt-1.5 space-y-1 pl-3 border-l-2 border-purple-100 ml-1 mt-1">
+                                  <div className="flex justify-between text-gray-700">
+                                    <span className="flex-1 truncate pr-2">Comisión Hospedaje ({tasaBase}%)</span>
+                                    <span className="font-medium whitespace-nowrap">{formatPrice(comisionBaseMonto)}</span>
+                                  </div>
+                                  
+                                  {desgloseAjustes && r.ajustes_reserva.map((ajuste: any, i: number) => {
+                                    const ajMonto = Number(ajuste.monto || 0);
+                                    const ajPorc = Number(ajuste.porcentaje_comision || 0);
+                                    const ajComision = (ajMonto * ajPorc) / 100;
+                                    return (
+                                      <div key={i} className="flex justify-between text-gray-700">
+                                        <span className="flex-1 truncate pr-2">{ajuste.concepto} ({ajPorc}%)</span>
+                                        <span className="font-medium whitespace-nowrap">{formatPrice(ajComision)}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </details>
+                            );
+                          })()}
                           
+                          <div className="flex justify-between mb-1">
+                            <span className="text-gray-600">Comisión Pagada:</span>
+                            <span className="font-semibold text-teal-600">{formatPrice(r.comision_pagada || 0)}</span>
+                          </div>
+
+                          {(() => {
+                            const transacciones = r.transacciones || [];
+                            const abonosComision = transacciones.filter((t: any) => {
+                              const tipo = String(t.tipo || '').toLowerCase().trim();
+                              const cat = String(t.categoria || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                              const concepto = String(t.concepto || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+                              return tipo === 'egreso' && (cat.includes('comision') || concepto.includes('comision'));
+                            }).sort((a: any, b: any) => new Date(b.fecha || b.created_at).getTime() - new Date(a.fecha || a.created_at).getTime());
+                            
+                            if (abonosComision.length === 0) {
+                              return (
+                                <div className="mb-2 text-[10px] text-gray-400 flex items-center gap-1 mt-1 select-none">
+                                  <span>▸</span> Ver historial de abonos (0)
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <details className="mb-2 text-xs group">
+                                <summary className="font-medium text-teal-600 cursor-pointer list-none flex items-center gap-1 mt-1 select-none">
+                                  <span className="group-open:hidden">▾ Ver historial de abonos ({abonosComision.length})</span>
+                                  <span className="hidden group-open:inline">▴ Ocultar historial de abonos</span>
+                                </summary>
+                                <div className="pt-2 space-y-2 pl-2 mt-1 mb-2">
+                                  {abonosComision.map((t: any, idx: number) => (
+                                    <div key={idx} className="bg-purple-50/50 p-2 rounded border border-purple-100 flex flex-col gap-0.5">
+                                      <div className="flex justify-between items-start">
+                                        <span className="font-medium text-purple-700">{formatPrice(t.monto_mxn || t.monto)}</span>
+                                        <span className="text-[9px] text-gray-400">
+                                          {(t.fecha || t.created_at) ? format(parseISO(t.fecha || t.created_at || new Date().toISOString()), 'dd MMM yyyy, HH:mm', { locale: es }) : ''}
+                                        </span>
+                                      </div>
+                                      <span className="text-[10px] text-gray-600 line-clamp-1" title={t.concepto}>{t.concepto || 'Abono de comisión'}</span>
+                                      {t.metodo_pago && (
+                                        <span className="text-[9px] text-gray-400 uppercase">{t.metodo_pago}</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </details>
+                            );
+                          })()}
+
+                          {(() => {
+                            const saldoComision = Number(r.monto_comision || 0) - Number(r.comision_pagada || 0);
+                            return (
+                              <>
+                                <div className="flex justify-between mt-2 pt-2 border-t border-purple-100">
+                                  <span className="text-gray-900 font-medium">Saldo Comisión:</span>
+                                  <span className={`font-bold ${saldoComision > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                    {formatPrice(saldoComision)}
+                                  </span>
+                                </div>
+                                {saldoComision > 0 && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full mt-3 h-8 text-xs text-purple-700 border-purple-200 hover:bg-purple-50"
+                                    onClick={() => {
+                                      setComisionMontoPago(saldoComision.toFixed(2))
+                                      setComisionMetodo('Efectivo MXN')
+                                      setComisionInHouseModal({ open: true, reserva: r })
+                                    }}
+                                  >
+                                    Saldar Comisión
+                                  </Button>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
 
                         {/* Botones Operativos */}
@@ -577,22 +709,6 @@ if (nochesEfectivas > nochesOriginales) nochesEfectivas = nochesOriginales
                           >
                             Modificar Salida
                           </Button>
-                          {/* Pagar comisión en recepción */}
-                          {Number(r.monto_comision || 0) > Number(r.comision_pagada || 0) && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full h-8 text-xs text-purple-700 border-purple-200 hover:bg-purple-50"
-                              onClick={() => {
-                                const saldoCom = Number(r.monto_comision || 0) - Number(r.comision_pagada || 0)
-                                setComisionMontoPago(saldoCom.toFixed(2))
-                                setComisionMetodo('Efectivo MXN')
-                                setComisionInHouseModal({ open: true, reserva: r })
-                              }}
-                            >
-                              Pagar Comisión ({formatPrice(Number(r.monto_comision || 0) - Number(r.comision_pagada || 0))})
-                            </Button>
-                          )}
                           <Button onClick={() => handleCheckOut(r)} disabled={loadingId === r.id} className={`w-full h-8 text-xs text-white shadow-sm ${r.fecha_salida > todayStr ? 'bg-slate-700 hover:bg-slate-800' : 'bg-gray-900 hover:bg-gray-800'}`}>
                             {loadingId === r.id ? 'Procesando...' : (r.fecha_salida > todayStr ? 'Check-out Anticipado' : 'Marcar Check-out')}
                           </Button>
@@ -619,6 +735,17 @@ if (nochesEfectivas > nochesOriginales) nochesEfectivas = nochesOriginales
         const saldo = getSaldo(r)
         const total = Number(r.monto_total_acordado) || Number(r.costo_total) || 0
         const transacciones = r.transacciones?.filter((t: any) => t.tipo === 'ingreso') || []
+        
+        let comisionCorriente = Number(r.monto_comision || 0);
+        const comisionesTx = (r.transacciones?.filter((t: any) => t.tipo === 'egreso' && t.categoria === 'comisiones') || [])
+          .sort((a: any, b: any) => new Date(a.created_at || a.fecha).getTime() - new Date(b.created_at || b.fecha).getTime())
+          .map((t: any) => {
+            const montoAbono = Number(t.monto_mxn || t.monto || 0);
+            comisionCorriente -= montoAbono;
+            return { ...t, montoAbono, saldoRestante: comisionCorriente };
+          })
+          .reverse();
+
         const totalPagado = total - saldo
 
         return (
@@ -662,6 +789,30 @@ if (nochesEfectivas > nochesOriginales) nochesEfectivas = nochesOriginales
                     </div>
                   )}
                 </div>
+
+                <div className="space-y-3 pt-4 border-t border-gray-100 mt-4">
+                  <h3 className="font-semibold text-purple-900 text-sm">Historial de Pago de Comisiones</h3>
+                  {comisionesTx.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic p-4 text-center border border-dashed rounded-lg">Sin abonos de comisión registrados.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {comisionesTx.map((t: any, idx: number) => (
+                        <div key={idx} className="bg-purple-50 border border-purple-100 p-3 rounded-lg shadow-sm text-sm">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="font-semibold text-purple-900">Abono: {formatPrice(t.montoAbono)} MXN</span>
+                            <span className="text-xs text-purple-600">{(t.created_at || t.fecha) ? format(parseISO(t.created_at || t.fecha || new Date().toISOString()), 'dd MMM yyyy HH:mm', { locale: es }) : 'Reciente'}</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-1 text-xs text-purple-700">
+                            <div><span className="font-medium text-purple-800">Método:</span> {t.metodo_pago || 'Desconocido'}</div>
+                            <div><span className="font-medium text-purple-800">Saldo Restante:</span> {formatPrice(t.saldoRestante)}</div>
+                            <div className="col-span-2 mt-1 italic text-purple-600/80">{t.concepto || 'Sin referencias'}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
               </div>
 
               <div className="p-5 border-t border-gray-100 bg-gray-50 mt-auto">
@@ -1223,6 +1374,7 @@ if (nochesEfectivas > nochesOriginales) nochesEfectivas = nochesOriginales
         open={fechasModal.open}
         onClose={() => setFechasModal({ open: false, reserva: null, modo: 'solo_salida' })}
         reserva={fechasModal.reserva}
+        historial={fechasModal.reserva?.historial_modificaciones || []}
         modo={fechasModal.modo}
         onSuccess={() => router.refresh()}
       />

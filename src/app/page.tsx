@@ -1,7 +1,7 @@
-﻿// src/app/page.tsx
+// src/app/page.tsx
 // Hub principal — portal de acceso a los módulos de la plataforma
 import Link from "next/link";
-import { Home, Car, Coffee, Truck, Cpu, LayoutDashboard } from "lucide-react";
+import { Home, Car, Coffee, Truck, Cpu, LayoutDashboard, Bot } from "lucide-react";
 
 const modules = [
   {
@@ -15,6 +15,26 @@ const modules = [
     available: true,
   },
   {
+    href: "/mrrobotto",
+    icon: Bot,
+    title: "Mr-Robotto",
+    description: "Robótica maker, kits WRO/SOLACyT, tienda de componentes, tutoriales Arduino y cursos con Certificación DC-3.",
+    color: "bg-red-600",
+    bgLight: "bg-red-50",
+    textColor: "text-red-700",
+    available: true,
+  },
+  {
+    href: "/falvoltcafe",
+    icon: Coffee,
+    title: "FalVolt Café",
+    description: "Café de estricta altura de la Sierra de Tapachula, Chiapas. Mezcla Marago-Árabe, cotizador de molienda y pedidos en línea.",
+    color: "bg-amber-600",
+    bgLight: "bg-amber-50",
+    textColor: "text-amber-800",
+    available: true,
+  },
+  {
     href: "/carrosgaby",
     icon: Car,
     title: "Carros Gaby",
@@ -22,16 +42,6 @@ const modules = [
     color: "bg-blue-600",
     bgLight: "bg-blue-50",
     textColor: "text-blue-700",
-    available: false,
-  },
-  {
-    href: "/falvoltcafe",
-    icon: Coffee,
-    title: "FalVolt Café",
-    description: "Próximamente: café de especialidad, bebidas, granos selectos y café molido.",
-    color: "bg-amber-600",
-    bgLight: "bg-amber-50",
-    textColor: "text-amber-800",
     available: false,
   },
   {
@@ -113,7 +123,7 @@ export default function HubPage() {
       </div>
 
       <footer className="text-center text-xs text-gray-400 py-4">
-        © {new Date().getFullYear()} Paginas Gaby
+        © {new Date().getFullYear()} Páginas Ixa
       </footer>
     </main>
   );

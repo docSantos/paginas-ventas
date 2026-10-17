@@ -10,10 +10,16 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Paginas Gaby",
-    default: "Paginas Gaby",
+    template: "%s | Páginas Ixa",
+    default: "Páginas Ixa — Matriz Central de Servicios y Plataformas",
   },
-  description: "Plataforma de servicios y renta de casas vacacionales",
+  description: "Páginas Ixa: Plataforma matriz de desarrollo, servicios y comercio digital.",
+  openGraph: {
+    title: "Páginas Ixa — Matriz Central",
+    description: "Plataforma matriz de servicios, comercio digital y aplicaciones tecnológicas.",
+    siteName: "Páginas Ixa",
+    type: "website",
+  },
   formatDetection: {
     telephone: false,
     date: false,
@@ -23,7 +29,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Casas Gaby",
+    title: "Páginas Ixa",
   },
 };
 
@@ -36,10 +42,15 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+import { RegisterSW } from "@/components/RegisterSW";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" suppressHydrationWarning className={`${geistSans.variable} h-full`}>
-      <body suppressHydrationWarning className="min-h-full bg-gray-50 antialiased">{children}</body>
+      <body suppressHydrationWarning className="min-h-full bg-gray-50 antialiased">
+        <RegisterSW />
+        {children}
+      </body>
     </html>
   );
 }

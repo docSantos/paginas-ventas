@@ -95,8 +95,7 @@ export function LoginClient() {
         </div>
 
         <button
-          type="button"
-          onClick={() => handleLogin()}
+          type="submit"
           disabled={loading}
           className="w-full mt-2 h-12 flex items-center justify-center text-base font-medium bg-gray-900 hover:bg-gray-800 text-white rounded-xl touch-manipulation cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
         >

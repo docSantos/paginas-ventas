@@ -23,5 +23,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 2. **Cero Hardcodeo y Cero Parches Temporales:** Queda estrictamente prohibido hardcodear valores, trucar cálculos con restas ciegas o inyectar scripts temporales ("temp fix") en vistas y layouts. Todo debe resolverse dinámicamente respetando la arquitectura y el código funcional existente.
 3. **Transparencia Técnica Total:** Tienes la obligación de reportar de inmediato cualquier bloqueo por RLS, variables de entorno faltantes (ej. `SUPABASE_SERVICE_ROLE_KEY`), tipos de permisos o consultas que devuelvan arrays vacíos `[]`. No asumas que una mutación fue exitosa sin validar explícitamente `{ data, error }` de Supabase.
 4. **Validación de Terminal:** Ningún script de Node o PowerShell debe quedar corriendo en segundo plano sin cierre explícito (`process.exit(0)`).
+5. **Precios y Tarifas Estrictas:** Los componentes, modales y formularios no deben inventar tarifas por defecto ni fallbacks multiplicativos (como precioPorNoche * 7 o precioPorSemana * 4). Deben alimentarse con fidelidad de `hospedaje.propiedades` y delegar el cálculo a `src/lib/pricing.ts`.
 
 <!-- END:custom-environment-rules -->

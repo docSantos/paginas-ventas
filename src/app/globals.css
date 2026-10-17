@@ -3,8 +3,36 @@
 @tailwind utilities;
 
 @supports (-webkit-touch-callout: none) {
-  /* Prevenir zoom forzado en dispositivos iOS / WebKit */
+  /* Prevenir zoom forzado en dispositivos iOS / WebKit al tocar inputs */
   input, select, textarea {
     font-size: 16px !important;
   }
 }
+
+/* Utilidades para Safe Area en iPhone / PWA con notch y barra de inicio */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+.safe-area-pt {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Scroll táctil fluido y sin parpadeos en WebKit iOS */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Ocultar barras de scroll nativas manteniendo funcionalidad táctil / rueda */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

@@ -42,3 +42,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Chikis landing page
+Chikis landig page/
+Chikis landing page/

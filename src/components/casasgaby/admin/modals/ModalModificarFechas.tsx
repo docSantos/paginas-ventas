@@ -97,16 +97,11 @@ export function ModalModificarFechas({
   // --- TARIFAS BASE (PROPIEDAD O INFERIDAS) ---
   const prop = dataItem?.propiedad || dataItem?.propiedades || {}
   
-  // Inferimos o leemos el catálogo para tener la tabla de precios
-  const precioPorNoche = Number(prop.precio_por_noche) || 1500
-  const precioPorSemana = Number(prop.precio_por_semana) || (precioPorNoche * 7)
-  const precioPorMes = Number(prop.precio_por_mes) || (precioPorSemana * 4)
-
   // --- REGLA OFICIAL DE CASAS GABY ---
   const preciosCalculados = {
-    precio_por_noche: precioPorNoche,
-    precio_por_semana: precioPorSemana,
-    precio_por_mes: precioPorMes
+    precio_por_noche: Number(prop.precio_por_noche || 0),
+    precio_por_semana: Number(prop.precio_por_semana || 0),
+    precio_por_mes: Number(prop.precio_por_mes || 0)
   };
 
   const nuevoHospedaje = calcularTarifaHospedaje(nochesNuevas, preciosCalculados);

@@ -2,9 +2,9 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Casas Gaby - Gestión & Reservas',
-    short_name: 'Casas Gaby',
-    description: 'Sistema de reservas, CRM y administración de alojamientos Casas Gaby',
+    name: 'Páginas Ixa — Matriz Digital',
+    short_name: 'Páginas Ixa',
+    description: 'Ecosistema y matriz central de plataformas, servicios y comercio digital Páginas Ixa',
     start_url: '/',
     display: 'standalone',
     background_color: '#ffffff',

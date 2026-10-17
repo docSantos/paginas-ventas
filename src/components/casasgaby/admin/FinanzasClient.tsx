@@ -3,18 +3,20 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DollarSign, Wallet, TrendingDown, PiggyBank, Calendar as CalendarIcon, Percent, BadgeDollarSign, CheckCircle } from 'lucide-react'
+import { DollarSign, Wallet, TrendingDown, PiggyBank, Calendar as CalendarIcon, Percent, BadgeDollarSign, CheckCircle, Info } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { registrarPagoComisionTabla, aplicarSaldoAFavorComision, registrarPagoComisionLote } from '@/app/casasgaby/admin/actions'
+import { pagarComisionInHouse, aplicarSaldoAFavorComision, pagarComisionesLoteReservas } from '@/app/casasgaby/admin/actions'
 import { formatPrice, formatDateEs } from '@/lib/utils'
 import { calcularFinanzasReserva } from './FinanzasCard'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 export function FinanzasClient({ propiedades, reservas, pagos, comisiones }: { propiedades: any[], reservas: any[], pagos: any[], comisiones?: any[] }) {
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const [year, setYear] = useState(new Date().getFullYear())
   const [month, setMonth] = useState(new Date().getMonth()) // 0-11
@@ -25,7 +27,41 @@ const formatLargePrice = (price: number) => {
   return formatted.replace('\xa0', ' ').replace('.00', '');
 }
 
-const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
+  const comisionesUnificadas = useMemo(() => {
+    // Tomamos las reservas del periodo que tienen comision > 0 y no estan canceladas sin costo
+    const reservasGeneradoras = (reservas || []).filter(r =>
+      !(r.estado === 'Cancelada' && !Number(r.monto_comision)) &&
+      Number(r.monto_comision || 0) > 0
+    );
+
+    return reservasGeneradoras.map(r => {
+      const comGuardada = (comisiones || []).find(c => c.reserva_id === r.id);
+      const prop = (propiedades || []).find(p => p.id === r.propiedad_id);
+
+      // Tomar siempre el valor más reciente de lo pagado (priorizando la reserva actualizada tras la acción)
+      const montoComision = Number(r.monto_comision || comGuardada?.monto_comision || 0);
+      const montoPagado = Math.max(Number(r.comision_pagada || 0), Number(comGuardada?.monto_pagado || 0));
+      const saldo = Math.max(0, montoComision - montoPagado);
+
+      const costoEstancia = Number(r.costo_total || r.monto_total_acordado || comGuardada?.monto_estancia || 0);
+      const porcentaje = costoEstancia > 0 ? Math.round((montoComision / costoEstancia) * 100) : null;
+
+      return {
+        id: r.id,
+        reserva_id: r.id,
+        fecha_reserva: r.solicitada_en || r.created_at || r.fecha_entrada,
+        propiedad_titulo: prop?.titulo || comGuardada?.propiedades?.titulo || 'Propiedad',
+        nombre_cliente: r.nombre_cliente || comGuardada?.reservas?.nombre_cliente || 'Sin nombre',
+        monto_estancia: costoEstancia,
+        monto_comision: montoComision,
+        monto_pagado: montoPagado,
+        saldo: saldo,
+        estado_pago: saldo <= 0 ? 'pagado' : (montoPagado > 0 ? 'parcial' : 'pendiente'),
+        rawReserva: r
+      };
+    }).sort((a, b) => new Date(b.fecha_reserva).getTime() - new Date(a.fecha_reserva).getTime());
+  }, [reservas, comisiones, propiedades]);
+
   const [selectedComisiones, setSelectedComisiones] = useState<string[]>([])
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -53,31 +89,14 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
       setIsSubmitting(true)
       let res;
       if (modalComision.ids.length === 1) {
-        res = await registrarPagoComisionTabla(modalComision.ids[0], Number(modalComision.pago))
+        res = await pagarComisionInHouse(modalComision.ids[0], Number(modalComision.pago))
       } else {
-        res = await registrarPagoComisionLote(modalComision.ids)
+        res = await pagarComisionesLoteReservas(modalComision.ids)
       }
       
       if (res && res.success === false) {
         alert(res.error || "Error al pagar comisión")
       } else {
-        // Actualización optimista
-        setLocalComisiones(prev => prev.map(c => {
-          if (modalComision.ids.includes(c.id)) {
-            let nuevoPagado = Number(c.monto_pagado);
-            if (modalComision.ids.length === 1) {
-              nuevoPagado += Number(modalComision.pago)
-            } else {
-              nuevoPagado = Number(c.monto_comision)
-            }
-            return {
-              ...c,
-              monto_pagado: nuevoPagado,
-              estado_pago: nuevoPagado >= Number(c.monto_comision) - 0.5 ? 'pagado' : 'parcial'
-            }
-          }
-          return c
-        }))
         setModalComision({ isOpen: false, ids: [], saldo: 0, pago: '' })
         setSelectedComisiones([])
       }
@@ -100,13 +119,40 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
     }
   }
 
-  const saldoAFavor = comisiones?.filter(c => c.estado_pago === 'cancelada_con_saldo_a_favor')
-    .reduce((acc, c) => acc + Number(c.monto_pagado), 0) || 0;
-  
-  const totalComisionPendiente = comisiones?.filter(c => c.estado_pago === 'pendiente' || c.estado_pago === 'parcial')
-    .reduce((acc, c) => acc + (Number(c.monto_comision) - Number(c.monto_pagado)), 0) || 0;
+  const {
+    totalGenerado,
+    totalLiquidado,
+    saldoAFavor,
+    pendienteBruto,
+    totalNetoATransferir
+  } = useMemo(() => {
+    const reservasSafe = reservas || [];
+    
+    // 1. totalGenerado: Suma de monto_comision de reservas del periodo/año (excluyendo canceladas sin costo)
+    const reservasGeneradoras = reservasSafe.filter(r => !(r.estado === 'Cancelada' && !Number(r.monto_comision)));
+    const generado = reservasGeneradoras.reduce((acc, r) => acc + Number(r.monto_comision || 0), 0);
+    
+    // 2. totalLiquidado: Suma de comision_pagada (total abonado a la fecha)
+    const liquidado = reservasSafe.reduce((acc, r) => acc + Number(r.comision_pagada || 0), 0);
 
-  const totalNetoATransferir = Math.max(0, totalComisionPendiente - saldoAFavor);
+    // 3. saldoAFavor: Crédito acumulado por reservas canceladas que ya tenían comisión pagada
+    const sFavor = reservasSafe.filter(r => r.estado_comision === 'cancelada_con_saldo_a_favor')
+      .reduce((acc, r) => acc + Number(r.comision_pagada || 0), 0);
+
+    // 4. pendienteBruto: Math.max(0, totalGenerado - totalLiquidado)
+    const pendienteB = Math.max(0, generado - liquidado);
+
+    // 5. totalNetoATransferir: Math.max(0, pendienteBruto - saldoAFavor)
+    const netoTransferir = Math.max(0, pendienteB - sFavor);
+
+    return {
+      totalGenerado: generado,
+      totalLiquidado: liquidado,
+      saldoAFavor: sFavor,
+      pendienteBruto: pendienteB,
+      totalNetoATransferir: netoTransferir
+    };
+  }, [reservas]);
 
 
     const kpis = useMemo(() => {
@@ -120,12 +166,18 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
       let dineroIngresadoBruto = 0;
       let dineroReembolsado = 0;
       
-      // Calculemos los pagos de las reservas vigentes (o globales si se requiere. La UI dice "Anticipos y abonos recibidos". Originalmente iteraba sobre 'reservas', que eran 'Activa').
-      // Para no perder dinero histórico, sumaremos todos los pagos.
+      // Calculemos los pagos de forma global y precisa.
       pagos.forEach(p => {
         const monto = Number(p.monto_mxn) || Number(p.monto) || 0;
-        if (p.tipo === 'egreso' || p.categoria === 'reembolso') {
-          dineroReembolsado += monto;
+        const tipo = String(p.tipo || '').toLowerCase().trim();
+        const cat = String(p.categoria || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        
+        if (tipo === 'egreso') {
+          // Filtrar unicamente las transacciones que sean devoluciones reales al huésped
+          if (cat === 'reembolso' || cat === 'devolucion' || cat === 'cancelacion') {
+            dineroReembolsado += monto;
+          }
+          // El pago de comisiones se ignora aquí; pertenece a otro flujo.
         } else {
           dineroIngresadoBruto += monto;
         }
@@ -133,7 +185,6 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
       const dineroEnCaja = dineroIngresadoBruto - dineroReembolsado;
       
       // 3. Saldo por Cobrar (Saldos pendientes reales)
-      // Suma directa del saldo pendiente usando calcularFinanzasReserva sobre reservas activas/confirmadas
       const cuentasPorCobrar = reservasVigentes.reduce((acc, r) => {
         const transaccionesReserva = pagos.filter(p => p.reserva_id === r.id);
         const reservaConTransacciones = { ...r, transacciones: transaccionesReserva };
@@ -141,15 +192,10 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
         return acc + saldoPendiente;
       }, 0);
   
-      // 4. Comisiones - Fuente de verdad: hospedaje.comisiones
-      const comisionesActivas = (comisiones || []).filter(c => c.estado_pago !== 'cancelada_con_saldo_a_favor')
-      const totalComisiones = comisionesActivas.length > 0
-        ? comisionesActivas.reduce((acc, c) => acc + Number(c.monto_comision || 0), 0)
-        : reservasVigentes.reduce((acc, r) => acc + Number(r.monto_comision || 0), 0)
-      const comisionesPagadas = comisionesActivas.length > 0
-        ? comisionesActivas.reduce((acc, c) => acc + Number(c.monto_pagado || 0), 0)
-        : reservasVigentes.reduce((acc, r) => acc + Number(r.comision_pagada || 0), 0)
-      const comisionesPendientes = totalComisiones - comisionesPagadas
+      // 4. Comisiones - Manteniendo el origen de reservas vigentes
+      const totalComisiones = reservasVigentes.reduce((acc, r) => acc + Number(r.monto_comision || 0), 0);
+      const comisionesPagadas = reservasVigentes.reduce((acc, r) => acc + Number(r.comision_pagada || 0), 0);
+      const comisionesPendientes = Math.max(0, totalComisiones - comisionesPagadas);
   
       return { totalProyectado, dineroEnCaja, dineroIngresadoBruto, dineroReembolsado, cuentasPorCobrar, totalComisiones, comisionesPagadas, comisionesPendientes }
     }, [reservas, pagos, comisiones])
@@ -298,17 +344,43 @@ const [localComisiones, setLocalComisiones] = useState<any[]>(comisiones || [])
   const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
 
-  // === LEDGER LOGIC ===
-  const totalHistorico = pagos.reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto_mxn || p.monto || 0)), 0)
-  
-  const currentMonth = new Date().getMonth()
-  const currentYear = new Date().getFullYear()
-  const ingresosMesActual = pagos.filter(p => {
-    const d = new Date(p.created_at)
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear
-  }).reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto_mxn || p.monto || 0)), 0)
+  // === LEDGER LOGIC (Flujo de Caja Real) ===
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
 
-const usdAcumulado = pagos.filter(p => p.moneda === 'USD').reduce((acc, p) => acc + ((p.tipo === 'egreso' || p.categoria === 'reembolso' ? -1 : 1) * Number(p.monto || 0)), 0)
+  // 1. Total Histórico Neto (Entradas reales - Salidas reales registradas en transacciones)
+  const totalHistorico = pagos.reduce((acc, p) => {
+    const tipo = String(p.tipo || '').toLowerCase().trim();
+    const cat = String(p.categoria || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const esEgreso = tipo === 'egreso' || cat === 'reembolso';
+    const monto = Number(p.monto_mxn || p.monto || 0);
+    return acc + (esEgreso ? -monto : monto);
+  }, 0);
+
+  // 2. Ingresos Brutos Cobrados en el Mes Actual (Solo entradas de dinero)
+  const ingresosBrutosMesActual = pagos.filter(p => {
+    const d = new Date(p.created_at);
+    const tipo = String(p.tipo || '').toLowerCase().trim();
+    return tipo !== 'egreso' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  }).reduce((acc, p) => acc + Number(p.monto_mxn || p.monto || 0), 0);
+
+  // 3. Egresos en el Mes Actual (Comisiones y reembolsos pagados desde caja)
+  const egresosMesActual = pagos.filter(p => {
+    const d = new Date(p.created_at);
+    const tipo = String(p.tipo || '').toLowerCase().trim();
+    const cat = String(p.categoria || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const esEgreso = tipo === 'egreso' || cat === 'reembolso';
+    return esEgreso && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  }).reduce((acc, p) => acc + Number(p.monto_mxn || p.monto || 0), 0);
+
+  // 4. Flujo Neto del Mes Actual
+  const ingresosMesActual = ingresosBrutosMesActual - egresosMesActual;
+
+  // 5. Divisas USD acumuladas
+  const usdAcumulado = pagos.filter(p => p.moneda === 'USD').reduce((acc, p) => {
+    const esEgreso = p.tipo === 'egreso' || p.categoria === 'reembolso';
+    return acc + ((esEgreso ? -1 : 1) * Number(p.monto || 0));
+  }, 0);
   
 const pagosEfectivo = pagos.filter(p => {
     const m = (p.metodo_pago || '').toLowerCase()
@@ -386,8 +458,8 @@ const pagosEfectivo = pagos.filter(p => {
                     Total Histórico
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="overflow-hidden">
-                  <div className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">{formatLargePrice(totalHistorico)}</div>
+                <CardContent className="overflow-visible">
+                  <div className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-gray-900 whitespace-nowrap overflow-visible">{formatLargePrice(totalHistorico)}</div>
                 </CardContent>
               </Card>
               <Card className="border-emerald-100 bg-emerald-50/50">
@@ -397,8 +469,9 @@ const pagosEfectivo = pagos.filter(p => {
                     Ingresos Mes Actual
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="overflow-hidden">
-                  <div className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">{formatLargePrice(ingresosMesActual)}</div>
+                <CardContent className="overflow-visible">
+                  <div className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-gray-900 whitespace-nowrap overflow-visible">{formatLargePrice(ingresosBrutosMesActual)}</div>
+                  <div className="text-xs text-gray-500 mt-1 whitespace-nowrap">Neto: <span className="font-medium text-emerald-700">{formatLargePrice(ingresosMesActual)}</span></div>
                 </CardContent>
               </Card>
 <Card className="border-amber-100 bg-amber-50/50">
@@ -408,8 +481,8 @@ const pagosEfectivo = pagos.filter(p => {
                     Divisas Acumuladas
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="overflow-hidden">
-                  <div className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">
+                <CardContent className="overflow-visible">
+                  <div className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-gray-900 whitespace-nowrap overflow-visible">
                     {usdAcumulado < 0 ? `-$${Math.abs(usdAcumulado).toLocaleString('es-MX')}` : `$${usdAcumulado.toLocaleString('es-MX')}`} USD
                   </div>
                 </CardContent>
@@ -503,16 +576,35 @@ const pagosEfectivo = pagos.filter(p => {
                             <span>{formatPrice(p.monto)}</span>
                           )}
                         </td>
-                        <td className={`px-4 py-3 text-right font-bold ${p.tipo === 'egreso' || p.categoria === 'reembolso' ? 'text-red-600' : 'text-gray-900'}`}>
-                        {p.tipo === 'egreso' || p.categoria === 'reembolso' ? (
-                          <div className="flex flex-col items-end">
-                            <span>-{formatPrice(p.monto_mxn || p.monto)}</span>
-                            <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded mt-1 whitespace-nowrap">Reembolso / Egreso</span>
-                          </div>
-                        ) : (
-                          formatPrice(p.monto_mxn || p.monto)
-                        )}
-                      </td>
+                        {(() => {
+                          const isEgreso = p.tipo === 'egreso' || String(p.categoria).toLowerCase() === 'reembolso';
+                          const cat = String(p.categoria || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                          const concepto = String(p.concepto || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                          
+                          if (isEgreso) {
+                            let badge = <span className="text-gray-700 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded text-[11px] font-medium mt-1 whitespace-nowrap">Egreso Operativo</span>;
+                            if (cat.includes('comision') || concepto.includes('comision')) {
+                              badge = <span className="text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded text-[11px] font-medium mt-1 whitespace-nowrap">Comisión Pagada</span>;
+                            } else if (cat.includes('reembolso') || cat.includes('devolucion') || concepto.includes('reembolso') || concepto.includes('devolucion')) {
+                              badge = <span className="text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-[11px] font-medium mt-1 whitespace-nowrap">Reembolso Huésped</span>;
+                            }
+
+                            return (
+                              <td className="px-4 py-3 text-right font-bold text-red-600">
+                                <div className="flex flex-col items-end">
+                                  <span>-{formatPrice(p.monto_mxn || p.monto)}</span>
+                                  {badge}
+                                </div>
+                              </td>
+                            );
+                          }
+
+                          return (
+                            <td className="px-4 py-3 text-right font-bold text-gray-900">
+                              {formatPrice(p.monto_mxn || p.monto)}
+                            </td>
+                          );
+                        })()}
                       </tr>
                     ))}
                     {filteredPagos.length === 0 && (
@@ -554,7 +646,7 @@ const pagosEfectivo = pagos.filter(p => {
             </CardTitle>
           </CardHeader>
           <CardContent className="overflow-hidden">
-            <div className="text-2xl font-bold text-green-700">{formatPrice(kpis.dineroEnCaja)}</div>
+            <div suppressHydrationWarning className="text-2xl font-bold text-green-700">{formatPrice(kpis.dineroEnCaja)}</div>
             <div className="mt-2 space-y-1 text-[11px] text-gray-600">
               <div className="flex justify-between">
                 <span>Ingresos Brutos:</span>
@@ -633,29 +725,29 @@ const pagosEfectivo = pagos.filter(p => {
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
           <Card className="border-gray-200">
-            <CardContent className="p-2.5 sm:p-3.5 flex flex-col justify-center min-w-0">
+            <CardContent className="p-2.5 sm:p-3.5 flex flex-col justify-center">
               <div className="text-sm text-gray-500 mb-1">Meses Pasados</div>
-              <div className="text-base sm:text-lg tracking-tight font-bold text-gray-800 truncate">{formatLargePrice(metrics.totalPast)}</div>
+              <div className="text-base sm:text-lg tracking-tight font-bold text-gray-800 whitespace-nowrap">{formatLargePrice(metrics.totalPast)}</div>
             </CardContent>
           </Card>
           <Card className="border-red-200 bg-red-50/50">
-            <CardContent className="p-2.5 sm:p-3.5 flex flex-col justify-center min-w-0">
+            <CardContent className="p-2.5 sm:p-3.5 flex flex-col justify-center">
               <div className="text-sm text-red-600 font-medium mb-1">Mes Actual</div>
-              <div className="text-base sm:text-lg tracking-tight font-bold text-red-700 truncate">{formatLargePrice(metrics.totalCurrent)}</div>
-                <p className="text-[10px] sm:text-xs text-red-500/80 font-medium mt-1 truncate">{metrics.freeNightsCurrent} noches libres restantes</p>
+              <div className="text-base sm:text-lg tracking-tight font-bold text-red-700 whitespace-nowrap">{formatLargePrice(metrics.totalCurrent)}</div>
+                <p className="text-[10px] sm:text-xs text-red-500/80 font-medium mt-1">{metrics.freeNightsCurrent} noches libres restantes</p>
             </CardContent>
           </Card>
           <Card className="border-gray-200">
-            <CardContent className="p-2.5 sm:p-3.5 flex flex-col justify-center min-w-0">
+            <CardContent className="p-2.5 sm:p-3.5 flex flex-col justify-center">
               <div className="text-sm text-gray-500 mb-1">Meses Siguientes</div>
-              <div className="text-base sm:text-lg tracking-tight font-bold text-gray-800 truncate">{formatLargePrice(metrics.totalFuture)}</div>
-                <p className="text-[10px] sm:text-xs text-gray-400 font-medium mt-1 truncate">{metrics.freeNightsFuture} noches por reservar</p>
+              <div className="text-base sm:text-lg tracking-tight font-bold text-gray-800 whitespace-nowrap">{formatLargePrice(metrics.totalFuture)}</div>
+                <p className="text-[10px] sm:text-xs text-gray-400 font-medium mt-1">{metrics.freeNightsFuture} noches por reservar</p>
             </CardContent>
           </Card>
           <Card className="border-gray-300 bg-gray-50">
-            <CardContent className="p-2.5 sm:p-3.5 flex flex-col justify-center min-w-0">
-                <div className="text-xs sm:text-sm text-gray-600 font-bold mb-1 truncate">Total del Año</div>
-                <div className="text-base sm:text-lg tracking-tight font-black text-gray-900 truncate">{formatLargePrice(metrics.totalYearLost)}</div>
+            <CardContent className="p-2.5 sm:p-3.5 flex flex-col justify-center">
+                <div className="text-xs sm:text-sm text-gray-600 font-bold mb-1">Total del Año</div>
+                <div className="text-base sm:text-lg tracking-tight font-black text-gray-900 whitespace-nowrap">{formatLargePrice(metrics.totalYearLost)}</div>
             </CardContent>
           </Card>
         </div>
@@ -731,41 +823,60 @@ const pagosEfectivo = pagos.filter(p => {
       {activeTab === 'comisiones' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="border-purple-100 bg-purple-50/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                  <BadgeDollarSign className="w-4 h-4 text-purple-600" />
-                  Comisión Pendiente (Reservas Activas)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="overflow-hidden">
-                <div className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">{formatPrice(totalComisionPendiente)}</div>
-              </CardContent>
-            </Card>
+              <Card className="border-purple-100 bg-purple-50/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <BadgeDollarSign className="w-4 h-4 text-purple-600" />
+                    Total Comisiones Generadas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="overflow-hidden">
+                  <div suppressHydrationWarning className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">
+                    {mounted ? formatPrice(totalGenerado) : '$0.00'}
+                  </div>
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    Total pactado en reservas del periodo
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card className="border-green-100 bg-green-50/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  Saldo a Favor (Cancelaciones)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="overflow-hidden">
-                <div className="text-2xl font-bold text-green-600">-{formatPrice(saldoAFavor)}</div>
-              </CardContent>
-            </Card>
+              <Card className="border-green-100 bg-green-50/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Comisiones Liquidadas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="overflow-hidden">
+                  <div suppressHydrationWarning className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">
+                    {mounted ? formatPrice(totalLiquidado) : '$0.00'}
+                  </div>
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    Total de abonos efectivamente pagados a gestores
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card className="border-blue-100 bg-blue-50/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-blue-600" />
-                  Total Neto a Transferir
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="overflow-hidden">
-                <div className="text-2xl font-bold text-blue-700">{formatPrice(totalNetoATransferir)}</div>
-              </CardContent>
-            </Card>
+              <Card className="border-blue-100 bg-blue-50/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-blue-600" />
+                    Pendiente Neto a Transferir
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="overflow-hidden">
+                  <div suppressHydrationWarning className="text-xl sm:text-2xl font-bold tracking-tight text-blue-700 truncate">
+                    {mounted ? formatPrice(totalNetoATransferir) : '$0.00'}
+                  </div>
+                  <div suppressHydrationWarning className="mt-2 text-[11px]">
+                    {mounted && saldoAFavor > 0 ? (
+                      <span className="text-green-600 font-medium">Incluye -{formatPrice(saldoAFavor)} de saldo a favor por cancelaciones</span>
+                    ) : (
+                      <span className="text-gray-500">Saldo al corriente para liquidación</span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -778,10 +889,10 @@ const pagosEfectivo = pagos.filter(p => {
                     <input 
                       type="checkbox" 
                       className="rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
-                      checked={localComisiones.filter(c => c.estado_pago === 'pendiente' || c.estado_pago === 'parcial').length > 0 && selectedComisiones.length === localComisiones.filter(c => c.estado_pago === 'pendiente' || c.estado_pago === 'parcial').length}
+                      checked={comisionesUnificadas.filter(c => c.estado_pago === 'pendiente' || c.estado_pago === 'parcial').length > 0 && selectedComisiones.length === comisionesUnificadas.filter(c => c.estado_pago === 'pendiente' || c.estado_pago === 'parcial').length}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedComisiones(localComisiones.filter(c => c.estado_pago === 'pendiente' || c.estado_pago === 'parcial').map(c => c.id))
+                          setSelectedComisiones(comisionesUnificadas.filter(c => c.estado_pago === 'pendiente' || c.estado_pago === 'parcial').map(c => c.id))
                         } else {
                           setSelectedComisiones([])
                         }
@@ -799,10 +910,10 @@ const pagosEfectivo = pagos.filter(p => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {localComisiones.length === 0 && (
+                {comisionesUnificadas.length === 0 && (
                   <tr><td colSpan={9} className="text-center py-6 text-gray-400">No hay comisiones registradas</td></tr>
                 )}
-                {localComisiones.map(c => (
+                {comisionesUnificadas.map(c => (
                   <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 text-center">
                       <input 
@@ -819,18 +930,47 @@ const pagosEfectivo = pagos.filter(p => {
                         }}
                       />
                     </td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{c.fecha_reserva ? formatDateEs(c.fecha_reserva) : ''}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
+                      {c.fecha_reserva ? format(parseISO(c.fecha_reserva), 'dd MMM yyyy, HH:mm', { locale: es }) : '-'}
+                    </td>
                     <td className="px-4 py-3">
-                      <div className="font-semibold text-gray-900">{c.propiedades?.titulo}</div>
-                      <div className="text-xs text-gray-500">{c.reservas?.nombre_cliente}</div>
+                      <div className="font-semibold text-gray-900">{c.propiedad_titulo}</div>
+                      <div className="text-xs text-gray-500">{c.nombre_cliente}</div>
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-600">{formatPrice(c.monto_estancia)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600">
+                      {formatPrice(c.monto_estancia || 0)}
+                    </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="font-medium text-purple-700">{formatPrice(c.monto_comision)}</div>
-                      <div className="text-[10px] text-gray-400">{c.porcentaje_comision}%</div>
+                      <div className="flex items-center justify-end gap-1.5 group relative">
+                        <div className="font-medium text-purple-700">{formatPrice(c.monto_comision)}</div>
+                        <Info className="h-3 w-3 text-gray-400 cursor-help" />
+                        
+                        {/* CSS Tooltip */}
+                        <div className="absolute right-0 bottom-full mb-2 hidden group-hover:block w-48 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-50 pointer-events-none">
+                          {c.rawReserva?.ajustes_reserva && c.rawReserva.ajustes_reserva.length > 0 ? (
+                            <div className="space-y-1 text-left">
+                              {c.rawReserva.ajustes_reserva.map((ajuste: any, i: number) => (
+                                <div key={i} className="flex justify-between">
+                                  <span>{ajuste.concepto}</span>
+                                  <span className="font-semibold text-purple-200">{ajuste.porcentaje_comision}%</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-left text-purple-200">
+                              Tarifa base × {c.rawReserva?.porcentaje_comision || 0}%
+                            </div>
+                          )}
+                          <div className="absolute right-3 -bottom-1 w-2 h-2 bg-gray-800 rotate-45"></div>
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-600">{formatPrice(c.monto_pagado)}</td>
-                    <td className="px-4 py-3 text-right font-bold text-gray-900">{formatPrice(c.monto_comision - c.monto_pagado)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600">
+                      {formatPrice(c.monto_pagado || 0)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-900">
+                      {formatPrice(c.saldo || 0)}
+                    </td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                         c.estado_pago === 'liquidado' || c.estado_pago === 'pagado' ? 'bg-green-100 text-green-700 font-bold' :
@@ -851,8 +991,8 @@ const pagosEfectivo = pagos.filter(p => {
                           onClick={() => setModalComision({ 
                             isOpen: true, 
                             ids: [c.id], 
-                            saldo: c.monto_comision - c.monto_pagado, 
-                            pago: String(c.monto_comision - c.monto_pagado) 
+                            saldo: c.saldo, 
+                            pago: String(c.saldo) 
                           })}
                         >
                           Pagar
@@ -927,12 +1067,12 @@ const pagosEfectivo = pagos.filter(p => {
             <span className="bg-teal-500 text-white text-xs py-1 px-2.5 rounded-full mr-3 shadow-inner">{selectedComisiones.length}</span>
             <span className="hidden md:inline">seleccionadas | Total:</span>
             <span className="md:hidden">Total:</span>
-            <span className="font-bold text-lg text-teal-400 ml-2">{formatPrice(localComisiones.filter(c => selectedComisiones.includes(c.id)).reduce((acc, c) => acc + (c.monto_comision - c.monto_pagado), 0))}</span>
+            <span className="font-bold text-lg text-teal-400 ml-2">{formatPrice(comisionesUnificadas.filter(c => selectedComisiones.includes(c.id)).reduce((acc, c) => acc + (c.saldo || 0), 0))}</span>
           </div>
           <Button 
             className="bg-teal-500 hover:bg-teal-600 text-white border border-teal-400 shadow-md whitespace-nowrap"
             onClick={() => {
-              const total = localComisiones.filter(c => selectedComisiones.includes(c.id)).reduce((acc, c) => acc + (c.monto_comision - c.monto_pagado), 0)
+              const total = comisionesUnificadas.filter(c => selectedComisiones.includes(c.id)).reduce((acc, c) => acc + (c.saldo || 0), 0)
               setModalComision({
                 isOpen: true,
                 ids: selectedComisiones,

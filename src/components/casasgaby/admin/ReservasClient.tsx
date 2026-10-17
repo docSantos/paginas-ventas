@@ -11,6 +11,8 @@ import { calculateStayTotal } from '@/lib/pricing'
 import { aprobarSolicitud, rechazarSolicitud, registrarAbono, registrarComisionPagada, cancelarReserva, cancelarReservaConReembolso, actualizarTarifaBase, agregarAjusteReserva, eliminarAjusteReserva, marcarCheckIn } from '@/app/casasgaby/admin/actions'
 import type { Solicitud, Reserva } from '@/types/casasgaby'
 import Link from 'next/link'
+import { format, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 import { FinanzasCard, calcularFinanzasReserva } from './FinanzasCard'
 import { ModalModificarFechas } from './modals/ModalModificarFechas'
@@ -447,11 +449,14 @@ const handleAbrirAprobar = (solicitud: any) => {
                               <span className="font-semibold text-purple-700">{formatPrice(r.monto_comision || 0)}</span>
                             </div>
                             
-                            {r.comisiones && r.comisiones.length > 0 && (() => {
-                              const tBase = Number(r.tarifa_base || 0);
-                              const tAcordado = Number(r.monto_total_acordado || r.costo_total || r.tarifa_base || 0);
-                              const subExtras = Math.max(0, tAcordado - tBase);
-                              
+                            {(() => {
+                              const desgloseAjustes = r.ajustes_reserva && r.ajustes_reserva.length > 0;
+                              const tasaBase = r.porcentaje_comision || tenantBase;
+                              if (!desgloseAjustes && !tasaBase) return null;
+
+                              const tarifaBase = Number(r.tarifa_base || 0);
+                              const comisionBaseMonto = (tarifaBase * Number(tasaBase || 0)) / 100;
+
                               return (
                                 <details className="mb-2 text-xs group">
                                   <summary className="font-medium text-purple-600 cursor-pointer list-none flex items-center gap-1 mt-0.5 select-none">
@@ -459,31 +464,75 @@ const handleAbrirAprobar = (solicitud: any) => {
                                   </summary>
                                   <div className="pt-1.5 space-y-1 pl-3 border-l-2 border-purple-100 ml-1 mt-1">
                                     <div className="flex justify-between text-gray-700">
-                                      <span className="flex-1 truncate pr-2">
-                                        Comisión Hospedaje ({tenantBase}%)
-                                      </span>
-                                      <span className="font-medium whitespace-nowrap">
-                                        {formatPrice(tBase * (tenantBase / 100))}
-                                      </span>
+                                      <span className="flex-1 truncate pr-2">Comisión Hospedaje ({tasaBase}%)</span>
+                                      <span className="font-medium whitespace-nowrap">{formatPrice(comisionBaseMonto)}</span>
                                     </div>
-                                    {subExtras > 0 && (
-                                      <div className="flex justify-between text-gray-700">
-                                        <span className="flex-1 truncate pr-2">
-                                          Comisión Extras ({tenantExtras}%)
-                                        </span>
-                                        <span className="font-medium whitespace-nowrap">
-                                          {formatPrice(subExtras * (tenantExtras / 100))}
-                                        </span>
-                                      </div>
-                                    )}
+                                    
+                                    {desgloseAjustes && r.ajustes_reserva.map((ajuste: any, i: number) => {
+                                      const ajMonto = Number(ajuste.monto || 0);
+                                      const ajPorc = Number(ajuste.porcentaje_comision || 0);
+                                      const ajComision = (ajMonto * ajPorc) / 100;
+                                      return (
+                                        <div key={i} className="flex justify-between text-gray-700">
+                                          <span className="flex-1 truncate pr-2">{ajuste.concepto} ({ajPorc}%)</span>
+                                          <span className="font-medium whitespace-nowrap">{formatPrice(ajComision)}</span>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </details>
                               );
                             })()}
+                            
                             <div className="flex justify-between mb-1">
                               <span className="text-gray-600">Comisión Pagada:</span>
                               <span className="font-semibold text-teal-600">{formatPrice(r.comision_pagada || 0)}</span>
                             </div>
+
+                            {(() => {
+                              const transacciones = r.transacciones || [];
+                              const abonosComision = transacciones.filter((t: any) => {
+                                const tipo = String(t.tipo || '').toLowerCase().trim();
+                                const cat = String(t.categoria || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                                const concepto = String(t.concepto || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+                                return tipo === 'egreso' && (cat.includes('comision') || concepto.includes('comision'));
+                              }).sort((a: any, b: any) => new Date(b.fecha || b.created_at).getTime() - new Date(a.fecha || a.created_at).getTime());
+                              
+                              if (abonosComision.length === 0) {
+                                return (
+                                  <div className="mb-2 text-[10px] text-gray-400 flex items-center gap-1 mt-1 select-none">
+                                    <span>▸</span> Ver historial de abonos (0)
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <details className="mb-2 text-xs group">
+                                  <summary className="font-medium text-teal-600 cursor-pointer list-none flex items-center gap-1 mt-1 select-none">
+                                    <span className="group-open:hidden">▾ Ver historial de abonos ({abonosComision.length})</span>
+                                    <span className="hidden group-open:inline">▴ Ocultar historial de abonos</span>
+                                  </summary>
+                                  <div className="pt-2 space-y-2 pl-2 mt-1 mb-2">
+                                    {abonosComision.map((t: any, idx: number) => (
+                                      <div key={idx} className="bg-purple-50/50 p-2 rounded border border-purple-100 flex flex-col gap-0.5">
+                                        <div className="flex justify-between items-start">
+                                          <span className="font-medium text-purple-700">{formatPrice(t.monto_mxn || t.monto)}</span>
+                                          <span className="text-[9px] text-gray-400">
+                                            {(t.fecha || t.created_at) ? format(parseISO(t.fecha || t.created_at || new Date().toISOString()), 'dd MMM yyyy, HH:mm', { locale: es }) : ''}
+                                          </span>
+                                        </div>
+                                        <span className="text-[10px] text-gray-600 line-clamp-1" title={t.concepto}>{t.concepto || 'Abono de comisión'}</span>
+                                        {t.metodo_pago && (
+                                          <span className="text-[9px] text-gray-400 uppercase">{t.metodo_pago}</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </details>
+                              );
+                            })()}
+
                             <div className="flex justify-between pt-1 border-t border-gray-100 mt-1">
                               <span className="text-gray-900 font-bold">Saldo Comisión:</span>
                               <span className={`font-bold ${(r.monto_comision || 0) - (r.comision_pagada || 0) <= 0 ? 'text-green-600' : 'text-amber-600'}`}>
@@ -737,6 +786,7 @@ const handleAbrirAprobar = (solicitud: any) => {
         open={fechasModal.open}
         onClose={() => setFechasModal({ open: false, reserva: null })}
         reserva={fechasModal.reserva}
+        historial={fechasModal.reserva?.historial_modificaciones || []}
         modo="completo"
         onSuccess={() => {
           setFechasModal({ open: false, reserva: null })
