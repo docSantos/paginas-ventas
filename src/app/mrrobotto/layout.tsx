@@ -29,13 +29,13 @@ export default function MrRobottoLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased selection:bg-red-600 selection:text-white">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col antialiased selection:bg-red-600 selection:text-white">
       {/* Proveedor de consola móvil Eruda para depurar en iPhone / Android */}
       <ErudaProvider />
 
-      {/* Contenedor mobile-first idéntico a la arquitectura de Casas Gaby (max-w-2xl, centrado con sombras de app nativa) */}
-      <div className="flex-1 flex flex-col max-w-2xl w-full mx-auto bg-slate-950 border-x border-slate-900/70 shadow-2xl relative">
-        <main className="flex-1 pb-20 safe-area-pb">
+      {/* Contenedor principal 100% responsivo: fluido en móviles y expansivo en pantallas de escritorio */}
+      <div className="flex-1 flex flex-col w-full relative">
+        <main className="flex-1 pb-28 md:pb-8 safe-area-pb">
           {children}
         </main>
       </div>

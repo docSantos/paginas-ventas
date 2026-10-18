@@ -107,6 +107,8 @@ export interface CertificacionDC3Info {
   horasAcreditadas: number;
   areaTematica: string;
   agenteCapacitador: string;
+  plataformaCertificadoraNombre?: string;
+  plataformaCertificadoraUrl?: string;
   beneficios: string[];
 }
 
@@ -117,7 +119,7 @@ export interface CursoPremium {
   descripcionCorta: string;
   descripcionLarga: string;
   nivel: NivelDificultad;
-  categoria: 'Arduino & Maker' | 'Robótica WRO / SOLACyT' | 'Capacitación Docente' | 'Cursos de Kits' | 'Automatización & PLC' | 'IoT & ESP32';
+  categoria: 'Arduino & Maker' | 'Robótica WRO / SOLACyT' | 'Capacitación Docente' | 'Cursos de Kits' | 'Automatización & PLC' | 'IoT & ESP32' | 'Diseño Electrónico & PCB';
   instructor: {
     nombre: string;
     rol: string;
@@ -157,6 +159,7 @@ export interface ProductoRobotica {
   imagenPrincipal: string;
   galeria: string[];
   destacadoReel: boolean;
+  esProximamente?: boolean;
   badge?: string;
   calificacion: number;
   reviewsCount: number;
@@ -173,4 +176,17 @@ export interface ProductoRobotica {
     tiempoEstimado: string;
     pesoFilamento: string;
   };
+}
+
+export interface BloqueCapacitacionHora {
+  id: string;
+  titulo: string;
+  horas: number;
+  subtitulo: string;
+  descripcion: string;
+  dirigidoA: string;
+  incluye: string[];
+  badge: string;
+  badgeColor: string;
+  destacado?: boolean;
 }

@@ -5,76 +5,77 @@ import {
   TutorialModulo,
   CursoPremium,
   ProductoRobotica,
-  CertificacionDC3Info
+  CertificacionDC3Info,
+  BloqueCapacitacionHora
 } from "@/types/mrrobotto";
 
 export const CERTIFICACION_DC3_GLOBAL: CertificacionDC3Info = {
   incluida: true,
-  claveRegistroSTPS: "STPS-CAP-MRB-2026/894",
+  claveRegistroSTPS: "STPS-CERTIMEXICO-2026/DC3",
   horasAcreditadas: 40,
-  areaTematica: "Tecnologías de la Información, Robótica y Automatización Industrial",
-  agenteCapacitador: "Centro de Capacitación Tecnológica Mr-Robotto S.A.S. de C.V.",
+  areaTematica: "Diseño Electrónico Avanzado, Ruteo de PCB Multicapa e Inteligencia Artificial Aplicada a Hardware",
+  agenteCapacitador: "CertiMéxico (certimexico.com) en alianza con Mr-Robotto",
+  plataformaCertificadoraNombre: "certimexico.com",
+  plataformaCertificadoraUrl: "https://certimexico.com",
   beneficios: [
-    "Constancia oficial de competencias o habilidades laborales con validez federal ante la STPS",
-    "Currículum enriquecido con registro oficial para técnicos, ingenieros y docentes",
-    "Evaluación de proyecto práctico final y retroalimentación personalizada por instructores certificados",
-    "Acreditación de horas de educación técnica continua exigidas por empresas e instituciones educativas"
+    "Constancia oficial de competencias o habilidades laborales Formato DC-3 con validez federal ante la STPS",
+    "Evaluación y emisión oficial realizada directamente a través de la plataforma certificadora certimexico.com",
+    "Dominio profesional de herramientas EDA líderes en la industria: Altium Designer y KiCad asistido por IA",
+    "Valor curricular comprobable para ingenieros electrónicos, mecatrónicos, técnicos y diseñadores de hardware"
   ]
 };
 
 export const PRODUCTOS_MRROBOTTO: ProductoRobotica[] = [
   {
-    id: "prod-wro-kit",
-    slug: "kit-robotica-competicion-wro-roborunner",
-    nombre: "Kit de Robótica de Competición WRO 'RoboRunner V3'",
-    subtitulo: "Homologado para World Robot Olympiad (RoboMission) y torneos SOLACyT Infomatrix",
-    categoria: "Kits de Competencia (WRO/SOLACyT)",
-    precio: 2850,
-    precioOriginal: 3400,
-    stock: 14,
+    id: "prod-gabinete-escualo",
+    slug: "gabinete-escualo-chasis-mecha-robotico-argb",
+    nombre: "Gabinete Escualo — Chasis Mecha Biónico con Iluminación ARGB (Próximamente)",
+    subtitulo: "Diseño propio de Mr-Robotto: estructura biónica articulada de tiburón mecánico para PC y laboratorio maker",
+    categoria: "Kits de Robótica (Brazos y Móviles)",
+    precio: 14999,
+    precioOriginal: 17500,
+    stock: 0,
     envioGratis: true,
     destacadoReel: true,
-    badge: "Homologado WRO 2026",
-    calificacion: 4.95,
-    reviewsCount: 38,
-    imagenPrincipal: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80",
+    esProximamente: true,
+    badge: "Próximamente · Diseño Propio",
+    calificacion: 5.0,
+    reviewsCount: 24,
+    imagenPrincipal: "/mrrobotto/shark-x.webp",
     galeria: [
-      "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80"
+      "/mrrobotto/shark-x.webp",
+      "/mrrobotto/shark-x.jpg"
     ],
     descripcion:
-      "Diseñado específicamente para las exigencias de tiempo y precisión de la WRO y torneos de robótica móvil de SOLACyT. Cuenta con motores N20 de alto torque con encoder magnético de cuadratura, chasis de fibra de vidrio ultra ligero y placa controladora ESP32/Arduino con puente H MOSFET integrado.",
-    compatibilidad: ["Arduino IDE", "ESP-IDF", "Python / MicroPython", "ROS 2 Embebido"],
+      "Una obra maestra de la mecatrónica y el diseño biónico desarrollada y rediseñada por el laboratorio de ingeniería de Mr-Robotto. El Gabinete Escualo fusiona la aerodinámica de un depredador marino con arquitectura cibernética modular: exoesqueleto articulado de fabricación propia, base iluminada con anillo ARGB, sistema de refrigeración integrado y soporte para placas Mini-ITX y fuentes SFX.",
+    compatibilidad: ["Placas Mini-ITX", "Refrigeración líquida 120/240mm", "Tarjetas gráficas dedicadas hasta 304mm", "Control ARGB y articulación por microcontrolador"],
     especificaciones: [
-      { nombre: "Velocidad Máxima", valor: "1.8 m/s regulada con PID" },
-      { nombre: "Microcontrolador", valor: "ESP32-S3 Dual Core 240MHz + Wi-Fi" },
-      { nombre: "Sensores Incluidos", valor: "Barra de 8 sensores infrarrojos + ToF Láser + Giroscopio MPU6050" },
-      { nombre: "Batería", valor: "LiPo 2S 7.4V 1500mAh con circuito de protección BMS" },
-      { nombre: "Chasis", valor: "Fibra de vidrio FR4 con corte CNC de precisión" }
+      { nombre: "Estatus", valor: "Próximo Lanzamiento (Registro en Lista de Espera VIP abierto)" },
+      { nombre: "Ingeniería", valor: "Rediseño exclusivo de autoría propia Mr-Robotto" },
+      { nombre: "Iluminación", valor: "Sistema ARGB direccionable en aleta dorsal, branquias y base hexagonal" },
+      { nombre: "Refrigeración", valor: "Soporte para refrigeración líquida AIO 120/240 mm" },
+      { nombre: "Fuente Soportada", valor: "Formato SFX / SFX-L de alto rendimiento" }
     ],
     contenidoCaja: [
-      "Chasis RoboRunner V3 con tornillería de acero inoxidable",
-      "2x Motores N20 12V con encoders magnéticos metálicos",
-      "Tarjeta controladora Mr-Robotto Master Drive ESP32-S3",
-      "Barra de 8 reflectores IR con salida analógica/digital",
-      "Batería LiPo 7.4V con cargador balanceador inteligente",
-      "Código base de calibración PID y biblioteca de navegación"
-    ],
-    enfoqueOlimpiada: "WRO RoboMission Senior / Junior & Robomatrix Seguidor de Línea"
+      "Chasis biónico Gabinete Escualo (Edición de Autor Mr-Robotto)",
+      "Base estructural con controlador de iluminación ARGB",
+      "Kit de tornillería de acero inoxidable y cable PCIe Riser",
+      "Manual de montaje y certificado de serie numerada"
+    ]
   },
   {
-    id: "prod-brazo-4dof",
-    slug: "kit-brazo-robotico-4dof-garra-servos",
-    nombre: "Kit Brazo Robótico 4-DoF con Garra y Servomotores Metálicos",
-    subtitulo: "Estructura articulada de 4 grados de libertad con pinza mecánica para Arduino y ESP32",
+    id: "prod-robot-4gdl-joystick",
+    slug: "robot-4-gdl-plantilla-doble-joystick-mdf",
+    nombre: "Robot 4 GDL con Plantilla de Control de Doble Joystick",
+    subtitulo: "Brazo robótico articulado en MDF de corte láser gobernado por consola ergonómica con 2 joysticks analógicos",
     categoria: "Kits de Robótica (Brazos y Móviles)",
-    precio: 1850,
-    precioOriginal: 2200,
-    stock: 12,
+    precio: 890,
+    precioOriginal: 1150,
+    stock: 18,
     envioGratis: true,
     destacadoReel: true,
-    badge: "Kit Estrella",
+    esProximamente: false,
+    badge: "Disponible · Entrega Inmediata",
     calificacion: 4.96,
     reviewsCount: 45,
     imagenPrincipal: "https://images.unsplash.com/photo-1563770660941-20978e870e26?auto=format&fit=crop&w=800&q=80",
@@ -82,58 +83,173 @@ export const PRODUCTOS_MRROBOTTO: ProductoRobotica[] = [
       "https://images.unsplash.com/photo-1563770660941-20978e870e26?auto=format&fit=crop&w=800&q=80",
       "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80"
     ],
-    descripcion: "Kit completo de brazo robótico industrial a escala para aprendizaje mecatrónico y automatización de procesos. Incorpora servomotores con piñonería metálica MG996R y SG90, base giratoria reforzada de 180° y pinza de sujeción de alta precisión. Incluye shield de conexión rápida para Arduino y código de cinemática inversa con control por joystick analógico o app Bluetooth.",
-    compatibilidad: ["Arduino Uno / Mega", "ESP32", "Raspberry Pi", "Control por Joystick o Bluetooth"],
+    descripcion:
+      "El kit ideal para iniciarte en la robótica industrial y mecatrónica práctica. Consta de un brazo articulado de 4 Grados de Libertad (Base giratoria, Hombro, Codo y Pinza) fabricado en MDF de corte láser de alta precisión, controlado mediante una plantilla de mando física donde se montan dos módulos joystick analógicos para operar todos los ejes con ambas manos como una excavadora o robot industrial real. Además, su chasis es 100% actualizable a la versión de Visión Artificial con ESP32 y Python.",
+    compatibilidad: ["Arduino Uno / Nano", "ESP32", "Actualizable a Visión Artificial con Python", "Plantilla de Doble Joystick"],
     especificaciones: [
-      { nombre: "Grados de Libertad (DoF)", valor: "4 ejes (Base giratoria, Hombro, Codo, Pinza)" },
-      { nombre: "Servomotores", valor: "2x MG996R (Metálicos 11kg/cm) + 2x SG90 (Micro)" },
-      { nombre: "Alcance Máximo", valor: "32 cm de radio" },
-      { nombre: "Capacidad de Carga", valor: "Hasta 250 gramos en extremo de pinza" },
-      { nombre: "Alimentación", valor: "5V a 6V DC externa recomendada (2A - 3A)" }
+      { nombre: "Grados de Libertad", valor: "4 GDL (Base, Hombro, Codo y Garra mecánica)" },
+      { nombre: "Sistema de Mando", valor: "2 Joysticks analógicos montados sobre plantilla de control ergonómica" },
+      { nombre: "Estructura", valor: "MDF de corte láser CNC de encastre exacto" },
+      { nombre: "Actuadores", valor: "4x Micro servomotores calibrados para articulación y pinza" },
+      { nombre: "Escalabilidad", valor: "Chasis preparado para actualización futura a ESP32 + Visión Artificial" }
     ],
     contenidoCaja: [
-      "Piezas estructurales de acrílico reforzado / corte láser",
-      "2x Servomotores metálicos MG996R de alto torque",
-      "2x Micro servomotores SG90 para codo y garra",
-      "Shield de expansión de servomotores para Arduino",
-      "Módulo de 2 Joysticks analógicos con pulsador",
-      "Fuente de alimentación 5V 3A regulada para servomotores",
-      "Manual impreso de montaje y código fuente en C++"
+      "Kit completo de piezas estructurales en MDF para el Brazo 4 GDL",
+      "Plantilla/consola física de control para alojar los 2 joysticks",
+      "2x Módulos Joystick analógicos de doble eje con botón pulsador",
+      "4x Servomotores con accesorios de acoplamiento y tornillería completa",
+      "Placa controladora compatible con Arduino, cables Dupont y código fuente C++ listo para cargar"
     ]
   },
   {
-    id: "prod-seguidor-linemaster",
-    slug: "robot-seguidor-linea-wro-solacyt-linemaster",
-    nombre: "Robot Seguidor de Línea Velocista 'LineMaster Pro' (WRO/SOLACyT)",
-    subtitulo: "Seguidor de línea de alta velocidad con barra reflectiva de 8 sensores y control PID",
-    categoria: "Kits de Competencia (WRO/SOLACyT)",
-    precio: 2450,
-    precioOriginal: 2950,
-    stock: 9,
+    id: "prod-robot-otto",
+    slug: "robot-otto-bionico-kit-educativo-bipedo",
+    nombre: "Robot Otto Biónico — Kit Educativo Bípedo Programable",
+    subtitulo: "Humanoide bípedo interactivo que camina, baila y esquiva obstáculos con sensor ultrasónico HC-SR04",
+    categoria: "Kits de Robótica (Brazos y Móviles)",
+    precio: 790,
+    precioOriginal: 990,
+    stock: 22,
     envioGratis: true,
     destacadoReel: true,
-    badge: "Campeón SOLACyT",
+    esProximamente: false,
+    badge: "Disponible · Bestseller STEAM",
     calificacion: 4.98,
-    reviewsCount: 31,
-    imagenPrincipal: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+    reviewsCount: 64,
+    imagenPrincipal: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80",
     galeria: [
+      "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80",
       "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80"
     ],
-    descripcion: "Robot móvil ultraligero diseñado para ganar carreras de seguidores de línea en pistas oficiales de lona negra con cinta blanca (o viceversa). Equipado con dos micromotores Pololu metálicos de 1000 RPM, puente H MOSFET de baja resistencia, barra frontal QTR-8A calibrada y algoritmo de control PID en tiempo real.",
-    compatibilidad: ["Arduino IDE", "ESP32", "MicroPython"],
+    descripcion:
+      "El robot bípedo más carismático y educativo del mundo maker. Otto camina por sí mismo, realiza coreografías de baile, emite sonidos melódicos con su buzzer integrado y detecta objetos frente a él gracias a sus 'ojos' ultrasónicos HC-SR04. Es perfecto para estudiantes, niños, jóvenes y clubes de robótica que buscan aprender programación en bloques o C++ en Arduino viendo resultados inmediatos.",
+    compatibilidad: ["Arduino Nano + Shield I/O", "Arduino IDE (C++)", " Otto Blockly (Programación visual por bloques)"],
     especificaciones: [
-      { nombre: "Velocidad Máxima", valor: "Hasta 2.2 m/s en recta" },
-      { nombre: "Sensores Ópticos", valor: "Barra de 8 fototransistores infrarrojos frontales" },
-      { nombre: "Chasis", valor: "Fibra de vidrio FR4 con pista de circuito impreso integrada" },
-      { nombre: "Neumáticos", valor: "Ruedas de silicona de alta tracción y baja inercia" }
+      { nombre: "Locomoción", valor: "Bípeda de 4 servomotores (Caderas izquierda/derecha y Tobillos)" },
+      { nombre: "Visión de Distancia", valor: "Sensor ultrasónico HC-SR04 frontal (2 cm a 400 cm)" },
+      { nombre: "Audio", valor: "Buzzer piezoeléctrico para emociones sonoras y melodías" },
+      { nombre: "Cerebro", valor: "Arduino Nano + Shield de expansión para conexión directa de servos" },
+      { nombre: "Chasis", valor: "Piezas impresas en 3D / corte de alta resistencia listas para armar" }
     ],
     contenidoCaja: [
-      "Chasis LineMaster Pro ensamblado y probado",
-      "Batería LiPo 7.4V de alta descarga",
-      "Cargador USB para batería LiPo",
-      "Código fuente abierto con rutina de autocalibración en pista"
+      "Cuerpo completo (Cabeza, Torso, 2 Piernas y 2 Pies)",
+      "4x Micro servomotores para caderas y pies con tornillería",
+      "Placa Arduino Nano + Shield de expansión I/O + Cable USB",
+      "Sensor ultrasónico HC-SR04, Buzzer sonoro y portabaterías",
+      "Guía paso a paso de ensamblaje y librerías de baile/caminata"
+    ]
+  },
+  {
+    id: "prod-robot-4gdl-vision-ia",
+    slug: "robot-4-gdl-vision-artificial-esp32-python",
+    nombre: "Robot 4 GDL con Visión Artificial, ESP32 y Python (Próximamente)",
+    subtitulo: "Brazo robótico 4 GDL controlado sin contacto mediante seguimiento de manos con IA (OpenCV / MediaPipe + ESP32)",
+    categoria: "Kits de Robótica (Brazos y Móviles)",
+    precio: 1390,
+    precioOriginal: 1750,
+    stock: 0,
+    envioGratis: true,
+    destacadoReel: true,
+    esProximamente: true,
+    badge: "Próximamente · IA Física",
+    calificacion: 4.99,
+    reviewsCount: 19,
+    imagenPrincipal: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80",
+    galeria: [
+      "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1563770660941-20978e870e26?auto=format&fit=crop&w=800&q=80"
     ],
-    enfoqueOlimpiada: "SOLACyT Robomatrix Seguidor de Línea & WRO Future Engineers"
+    descripcion:
+      "Lleva la Inteligencia Artificial del monitor al mundo físico. Este sistema evoluciona nuestro Brazo de 4 GDL integrando un microcontrolador ESP32 de doble núcleo comunicado en tiempo real con un script en Python (MediaPipe + OpenCV). Mueve tu mano frente a la cámara de tu computadora o módulo de visión y el brazo robótico replicará tus gestos, abrirá la pinza al juntar tus dedos y clasificará objetos por color o forma.",
+    compatibilidad: ["ESP32 Dual-Core Wi-Fi/Serial", "Python 3 + OpenCV + MediaPipe", "Compatible como Upgrade del Robot 4 GDL con Joystick"],
+    especificaciones: [
+      { nombre: "Estatus", valor: "En fase final de desarrollo — Lista de Espera abierta" },
+      { nombre: "Control por IA", valor: "Hand Tracking (21 puntos de la mano en tiempo real) con Python" },
+      { nombre: "Microcontrolador", valor: "ESP32 de 240 MHz con comunicación de baja latencia" },
+      { nombre: "Grados de Libertad", valor: "4 GDL sincronizados con cinemática mapeada por visión" },
+      { nombre: "Ventaja Modular", valor: "Si ya tienes el Robot 4 GDL con Joystick, podrás actualizarlo fácilmente" }
+    ],
+    contenidoCaja: [
+      "Estructura completa de Brazo Robótico 4 GDL + 4 Servomotores",
+      "Tarjeta de desarrollo ESP32 Dual-Core Wi-Fi + Bluetooth",
+      "Repositorio de scripts en Python (Detección de gestos de mano y objetos)",
+      "Firmware en C++ para ESP32 y guía de instalación de entorno Python"
+    ]
+  },
+  {
+    id: "prod-robot-6gdl-kuka-joystick",
+    slug: "robot-6-gdl-tipo-kuka-doble-joystick-mg90s",
+    nombre: "Robot 6 GDL Tipo KUKA con Plantilla de Doble Joystick y Servos MG90S (Próximamente)",
+    subtitulo: "Réplica a escala de brazo industrial de 6 ejes con piñonería metálica MG90S y consola con 2 joysticks",
+    categoria: "Kits de Robótica (Brazos y Móviles)",
+    precio: 1950,
+    precioOriginal: 2450,
+    stock: 0,
+    envioGratis: true,
+    destacadoReel: true,
+    esProximamente: true,
+    badge: "Próximamente · Tipo KUKA 6-DoF",
+    calificacion: 4.99,
+    reviewsCount: 28,
+    imagenPrincipal: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80",
+    galeria: [
+      "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1563770660941-20978e870e26?auto=format&fit=crop&w=800&q=80"
+    ],
+    descripcion:
+      "Inspirado en la geometría de los brazos robóticos industriales KUKA. Cuenta con 6 Grados de Libertad (Base, Hombro, Codo, Giro de Muñeca, Inclinación de Muñeca y Pinza) impulsados por servomotores MG90S de engranes 100% metálicos (~2.2 kg·cm), con un alcance optimizado de ingeniería de 20 a 22 cm para máxima precisión y par mecánico sin vibraciones. Se gobierna desde una plantilla de control con dos joysticks analógicos y botones de cambio de eje para operar los 6 grados de libertad con total fluidez.",
+    compatibilidad: ["Arduino Uno / Mega / Nano", "ESP32", "Controlador PWM I2C PCA9685 de 16 canales", "Plantilla de Doble Joystick"],
+    especificaciones: [
+      { nombre: "Estatus", valor: "Próximamente — Apartado en Lista de Espera disponible" },
+      { nombre: "Grados de Libertad", valor: "6 GDL completos tipo manipulador industrial KUKA" },
+      { nombre: "Servomotores", valor: "6x MG90S con piñonería metálica de alto desempeño (2.2 kg·cm)" },
+      { nombre: "Alcance Óptimo", valor: "20 a 22 cm de radio (calculado para par óptimo sin sobrecarga)" },
+      { nombre: "Consola de Mando", valor: "Plantilla de control con 2 Joysticks analógicos y conmutación de ejes" }
+    ],
+    contenidoCaja: [
+      "Estructura estética industrial tipo KUKA de 6 ejes articulados",
+      "6x Servomotores MG90S de engranes metálicos",
+      "Plantilla de control ergonómica con 2 módulos Joystick analógicos",
+      "Driver PWM PCA9685 de 16 canales + Placa microcontroladora",
+      "Fuente de alimentación de 5V de alto amperaje y código de control suave"
+    ]
+  },
+  {
+    id: "prod-robot-6gdl-kuka-vision-ia",
+    slug: "robot-6-gdl-tipo-kuka-vision-artificial-esp32-python",
+    nombre: "Robot 6 GDL Tipo KUKA con Visión Artificial, ESP32 y Python (Próximamente)",
+    subtitulo: "Manipulador industrial a escala de 6 ejes gobernado por Visión por Computadora en Python y ESP32",
+    categoria: "Kits de Robótica (Brazos y Móviles)",
+    precio: 2490,
+    precioOriginal: 3100,
+    stock: 0,
+    envioGratis: true,
+    destacadoReel: true,
+    esProximamente: true,
+    badge: "Próximamente · Tope de Gama IA",
+    calificacion: 5.0,
+    reviewsCount: 33,
+    imagenPrincipal: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+    galeria: [
+      "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80"
+    ],
+    descripcion:
+      "La cúspide de nuestra línea de brazos robóticos educativos e industriales a escala. Combina la cinemática de 6 Grados de Libertad tipo KUKA (servomotores metálicos MG90S) con el poder del microcontrolador ESP32 y algoritmos de Visión Artificial en Python. Permite realizar tareas automatizadas de Pick & Place inteligente por detección de objetos, seguimiento espacial en 3D y control gestual avanzado desde computadora.",
+    compatibilidad: ["ESP32 Dual-Core", "Python 3 (OpenCV, MediaPipe, NumPy)", "Cinemática Inversa 6-DoF", "Driver PCA9685 I2C"],
+    especificaciones: [
+      { nombre: "Estatus", valor: "Próximamente — Registro prioritario por WhatsApp" },
+      { nombre: "Arquitectura", valor: "Brazo 6 GDL tipo KUKA + Cerebro ESP32 + Visión Artificial Python" },
+      { nombre: "Servomotores", valor: "6x MG90S de engranes metálicos con control PWM de 12 bits" },
+      { nombre: "Alcance Mecánico", valor: "20 a 22 cm con compensación geométrica de par" },
+      { nombre: "Funciones IA", valor: "Reconocimiento de postura de mano, clasificación por color y coordenadas X-Y-Z" }
+    ],
+    contenidoCaja: [
+      "Brazo Robótico 6 GDL Tipo KUKA completo con 6 servos metálicos MG90S",
+      "Placa ESP32 Dual-Core + Módulo controlador PCA9685 de 16 canales",
+      "Plantilla de control secundaria + Suite de programas en Python y C++",
+      "Fuente de poder dedicada y guía maestra de cinemática + visión artificial"
+    ]
   },
   {
     id: "prod-stl-chasis-seguidor",
@@ -149,9 +265,9 @@ export const PRODUCTOS_MRROBOTTO: ProductoRobotica[] = [
     badge: "Descarga Inmediata",
     calificacion: 4.92,
     reviewsCount: 67,
-    imagenPrincipal: "https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=800&q=80",
+    imagenPrincipal: "https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?auto=format&fit=crop&w=800&q=80",
     galeria: [
-      "https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=800&q=80"
+      "https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?auto=format&fit=crop&w=800&q=80"
     ],
     descripcion: "Pack de archivos digitales para fabricación aditiva FDM. Incluye el chasis monocasco de bajo centro de gravedad, soporte ajustable para barra de sensores reflectivos, encastres para micromotores N20 y bandeja porta-batería. Sin necesidad de soportes complejos.",
     compatibilidad: ["Cualquier impresora 3D FDM (Ender 3, Prusa, Bambu Lab)", "Slicers: Cura, PrusaSlicer, OrcaSlicer"],
@@ -179,7 +295,7 @@ export const PRODUCTOS_MRROBOTTO: ProductoRobotica[] = [
     id: "prod-stl-brazo-4dof",
     slug: "archivos-stl-brazo-robotico-4dof-garra",
     nombre: "Pack STL: Estructura Completa de Brazo Robótico 4-DoF con Garra",
-    subtitulo: "Kit de archivos 3D para armar tu propio brazo robótico con servos MG996R y SG90",
+    subtitulo: "Kit de archivos 3D para armar tu propio brazo robótico con servos MG996R y MG90S",
     categoria: "Archivos de Impresión 3D (.STL)",
     precio: 160,
     precioOriginal: 240,
@@ -215,43 +331,6 @@ export const PRODUCTOS_MRROBOTTO: ProductoRobotica[] = [
     }
   },
   {
-    id: "prod-stl-soportes-sensores",
-    slug: "archivos-stl-soportes-sensores-hcsr04-dht11-oled",
-    nombre: "Pack STL: Soportes y Carcasas Modulares para Sensores Maker",
-    subtitulo: "Soportes para sensor ultrasónico HC-SR04, DHT11/DHT22 y pantallas OLED 0.96\"",
-    categoria: "Archivos de Impresión 3D (.STL)",
-    precio: 65,
-    precioOriginal: 110,
-    stock: 999,
-    envioGratis: true,
-    destacadoReel: false,
-    badge: "Utilidad Maker",
-    calificacion: 4.88,
-    reviewsCount: 39,
-    imagenPrincipal: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80",
-    galeria: [
-      "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80"
-    ],
-    descripcion: "El kit de utilidades esenciales para prototipado limpio. Olvídate de pegar sensores con cinta o silicón: monta tus sensores ultrasónicos con rotación de servomotor, fija pantallas OLED al chasis y protege módulos térmicos DHT11.",
-    compatibilidad: ["HC-SR04", "DHT11", "DHT22", "OLED 0.96 I2C", "Servomotores SG90"],
-    especificaciones: [
-      { nombre: "Piezas", valor: "8 modelos STL individuales de encastre a presión y con tornillo" },
-      { nombre: "Tiempo por pieza", valor: "15 a 30 minutos por soporte" }
-    ],
-    contenidoCaja: [
-      "Archivos STL listos para imprimir",
-      "Archivos editables en STEP"
-    ],
-    esDigital: true,
-    formatosArchivos: [".STL", ".STEP"],
-    parametrosImpresion: {
-      material: "PLA",
-      infill: "15%",
-      tiempoEstimado: "2 horas total",
-      pesoFilamento: "35 g"
-    }
-  },
-  {
     id: "prod-kit-sensores-37",
     slug: "kit-master-37-sensores-arduino-esp32",
     nombre: "Kit Master 37 Sensores y Módulos Maker para Arduino & ESP32",
@@ -261,8 +340,8 @@ export const PRODUCTOS_MRROBOTTO: ProductoRobotica[] = [
     precioOriginal: 890,
     stock: 29,
     envioGratis: true,
-    destacadoReel: true,
-    badge: "Más Vendido",
+    destacadoReel: false,
+    badge: "Complemento Maker",
     calificacion: 4.9,
     reviewsCount: 112,
     imagenPrincipal: "https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&w=800&q=80",
@@ -290,13 +369,13 @@ export const PRODUCTOS_MRROBOTTO: ProductoRobotica[] = [
     id: "prod-esp32-devkit",
     slug: "esp32-wroom-32d-devkit-v1",
     nombre: "Placa de Desarrollo ESP32-WROOM-32D Dual-Core Wi-Fi + BLE",
-    subtitulo: "Potencia de 240 MHz con conectividad inalámbrica para IoT y robots de telemetría",
+    subtitulo: "Potencia de 240 MHz con conectividad inalámbrica para IoT y robots con Visión Artificial",
     categoria: "Microcontroladores",
     precio: 145,
     precioOriginal: 190,
     stock: 50,
     envioGratis: false,
-    destacadoReel: true,
+    destacadoReel: false,
     badge: "Oferta Maker",
     calificacion: 4.88,
     reviewsCount: 84,
@@ -306,163 +385,381 @@ export const PRODUCTOS_MRROBOTTO: ProductoRobotica[] = [
     ],
     descripcion:
       "La placa predilecta para el desarrollo de proyectos conectados de alta velocidad. Cuenta con 38 pines GPIO con soporte para DAC, ADC de 12 bits, sensores táctiles capacitivos, PWM por hardware y transceptor de radio de 2.4 GHz.",
-    compatibilidad: ["Arduino IDE", "MicroPython", "Espressif IDF", "FreeRTOS"],
+    compatibilidad: ["Arduino IDE", "MicroPython", "Espressif IDF", "Python Serial / Wi-Fi"],
     especificaciones: [
       { nombre: "Procesador", valor: "Xtensa dual-core 32-bit LX6 hasta 240MHz" },
       { nombre: "Memoria", valor: "520 KB SRAM interna + 4MB Flash SPI" },
       { nombre: "Conectividad", valor: "Wi-Fi 802.11 b/g/n + Bluetooth 4.2 BR/EDR y BLE" },
-      { nombre: "Conector USB", valor: "Micro-USB con convertidor serie CP2102 de alta velocidad" }
+      { nombre: "Conector USB", valor: "USB con convertidor serie CP2102 de alta velocidad" }
     ],
     contenidoCaja: [
       "Placa de desarrollo ESP32 DevKit V1 en empaque antiestático",
       "Pinout impreso de alta resolución"
     ]
-  },
-  {
-    id: "prod-driver-l298n-pack",
-    slug: "pack-driver-l298n-motores-dc",
-    nombre: "Driver de Motores Doble Puente H L298N de Alto Rendimiento",
-    subtitulo: "Control bidireccional hasta 2A por canal con gran disipador térmico",
-    categoria: "Motores & Drivers",
-    precio: 75,
-    precioOriginal: 99,
-    stock: 35,
-    envioGratis: false,
-    destacadoReel: false,
-    badge: "Esencial Robótica",
-    calificacion: 4.8,
-    reviewsCount: 42,
-    imagenPrincipal: "https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=800&q=80",
-    galeria: [
-      "https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=800&q=80"
-    ],
-    descripcion:
-      "Módulo de control de potencia diseñado para gobernar la dirección y velocidad de hasta 2 motores de corriente continua o 1 motor paso a paso bipolar.",
-    compatibilidad: ["Arduino", "ESP32", "Raspberry Pi", "Microcontroladores PIC"],
-    especificaciones: [
-      { nombre: "Rango de Voltaje de Motores", valor: "5V a 35V DC" },
-      { nombre: "Corriente Pico", valor: "3A (2A continuo por canal)" },
-      { nombre: "Regulador 5V Integrado", valor: "LM78M05 para alimentar la lógica" }
-    ],
-    contenidoCaja: [
-      "Módulo L298N con disipador montado de fábrica",
-      "Guía rápida de conexión de borneras y jumpers"
-    ]
-  },
-  {
-    id: "prod-chasis-sumo-solacyt",
-    slug: "chasis-aluminio-mini-sumo-solacyt",
-    nombre: "Chasis CNC de Aluminio Anodizado para Mini Sumo de Torneo",
-    subtitulo: "Cumple especificaciones oficiales de peso y dimensiones SOLACyT / Robomatrix",
-    categoria: "Kits de Competencia (WRO/SOLACyT)",
-    precio: 1450,
-    precioOriginal: 1800,
-    stock: 8,
-    envioGratis: true,
-    destacadoReel: true,
-    badge: "Reglamento SOLACyT",
-    calificacion: 4.97,
-    reviewsCount: 19,
-    imagenPrincipal: "https://images.unsplash.com/photo-1563770660941-20978e870e26?auto=format&fit=crop&w=800&q=80",
-    galeria: [
-      "https://images.unsplash.com/photo-1563770660941-20978e870e26?auto=format&fit=crop&w=800&q=80"
-    ],
-    descripcion:
-      "Estructura mecanizada en aleación de aluminio 6061 con rampa frontal afilada para levantar contrincantes en el dohyo. Diseñado para no exceder las dimensiones de 10x10 cm ni el límite de 500g de las categorías oficiales de Mini Sumo.",
-    compatibilidad: ["Motores Pololu Micro Metal", "Sensores Sharp / ToF", "Controladores Arduino Nano / ESP32"],
-    especificaciones: [
-      { nombre: "Dimensiones", valor: "9.8 cm x 9.8 cm x 4.5 cm (Reglamentario)" },
-      { nombre: "Peso Vacío", valor: "165 gramos" },
-      { nombre: "Material", valor: "Aluminio aeroespacial anodizado negro mate" }
-    ],
-    contenidoCaja: [
-      "Chasis principal con rampa frontal de ataque",
-      "Soportes de montaje para micromotores",
-      "Neumáticos de silicona de alta adherencia para pistas de lona",
-      "Juego de tornillos Allen métrica 2mm"
-    ],
-    enfoqueOlimpiada: "SOLACyT Robomatrix Mini Sumo & Torneos Internacionales"
   }
 ];
 
 export const CURSOS_PREMIUM_MRROBOTTO: CursoPremium[] = [
   {
-    id: "curso-docentes-robotica",
-    slug: "capacitacion-docentes-clubes-robotica-kits",
-    titulo: "Capacitación para Docentes: Creación de Clubes de Robótica con Kits Mr-Robotto",
+    id: "curso-dc3-altium-pcb",
+    slug: "diseno-electronico-pcb-altium-designer-dc3",
+    titulo: "Curso de Diseño Electrónico y PCB Profesional con Altium Designer (DC-3)",
     descripcionCorta:
-      "Formación pedagógica STEAM y técnica para profesores de secundaria, preparatoria y universidad. Incluye rúbricas de evaluación, planeaciones didácticas y Certificación Oficial DC-3 STPS.",
+      "Domina el estándar industrial para diseño de circuitos impresos (PCB) multicapa, reglas de alta velocidad y generación de archivos de manufactura Gerber/BOM. Certificación Oficial DC-3 STPS realizada en certimexico.com.",
     descripcionLarga:
-      "Diseñado especialmente para docentes, directores y coordinadores de tecnología que desean implementar talleres o materias extracurriculares de robótica educativa en sus colegios. Te enseñamos a estructurar sesiones prácticas de 50 a 90 minutos usando los kits de Mr-Robotto, cómo evaluar mediante rúbricas objetivas, resolver los fallos más comunes de hardware en clase y motivar a tus alumnos para participar en la World Robot Olympiad (WRO) o ferias de SOLACyT. Incluye acreditación oficial con Certificación DC-3 STPS.",
-    nivel: "Principiante",
-    categoria: "Capacitación Docente",
+      "Aprende a diseñar tarjetas electrónicas profesionales de nivel industrial con Altium Designer. Desde la captura esquemática jerárquica y creación de librerías con modelos 3D STEP, hasta el ruteo diferencial, planos de tierra, control de impedancia, análisis de integridad de señal y exportación de paquetes completos para fabricación y ensamblaje superficial (SMT/PCBA). La evaluación y emisión de tu Constancia Oficial DC-3 ante la STPS se realiza directamente en nuestra plataforma certificadora aliada certimexico.com.",
+    nivel: "Intermedio",
+    categoria: "Diseño Electrónico & PCB",
     instructor: {
-      nombre: "Mtra. Claudia Santillán",
-      rol: "Coordinadora Pedagógica STEAM y Asesora de Clubes Olímpicos",
-      avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
-      certificaciones: "Certificadora STPS • Especialista en Educación Tecnológica"
+      nombre: "M. en C. Roberto Palacios",
+      rol: "Especialista en Diseño de Hardware Industrial / Evaluador en certimexico.com",
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+      certificaciones: "Certificación Oficial STPS vía certimexico.com • Senior PCB Designer"
     },
-    portada: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80",
-    duracionTotal: "30 horas con valor curricular (24 lecciones en video)",
-    totalLecciones: 24,
+    portada: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+    duracionTotal: "40 horas con valor curricular STPS (30 lecciones en video HD)",
+    totalLecciones: 30,
     calificacion: 4.99,
-    precio: 1650,
-    precioOriginal: 2400,
+    precio: 1950,
+    precioOriginal: 2800,
     esPremium: true,
-    esCapacitacionDocente: true,
-    paraDocentes: {
-      nivelEducativo: "Secundaria, Bachillerato y Universidad",
-      incluyeMaterialAula: true,
-      rubricasEvaluacion: true
-    },
     certificacionDC3: {
       incluida: true,
-      claveRegistroSTPS: "STPS-CAP-MRB-2026/410",
-      horasAcreditadas: 30,
-      areaTematica: "Capacitación Docente en Robótica y Metodologías STEAM",
-      agenteCapacitador: "Centro de Capacitación Tecnológica Mr-Robotto S.A.S.",
+      claveRegistroSTPS: "STPS-CERTIMEXICO-ALT-2026",
+      horasAcreditadas: 40,
+      areaTematica: "Diseño Electrónico Industrial y Manufactura de Tarjetas PCB con Altium Designer",
+      agenteCapacitador: "CertiMéxico (certimexico.com) — Centro Certificador Oficial STPS",
+      plataformaCertificadoraNombre: "certimexico.com",
+      plataformaCertificadoraUrl: "https://certimexico.com",
       beneficios: [
-        "Constancia de competencias laborales formato DC-3 con validez federal STPS para tu expediente docente",
-        "Rúbricas de evaluación en PDF y planeaciones didácticas de 16 semanas listas para usar en tu colegio",
-        "Asesoría técnica prioritaria por WhatsApp para resolver dudas durante tus clases de laboratorio",
-        "Descuento institucional del 15% en compras de kits para tu colegio"
+        "Constancia oficial Formato DC-3 con validez ante la STPS gestionada y emitida en certimexico.com",
+        "Verificación digital del certificado y registro curricular para la industria electrónica y automotriz",
+        "Revisión técnica de tu diseño de PCB final antes de enviarlo a fábrica (JLCPCB / PCBWay)",
+        "Plantillas profesionales de reglas de diseño (Design Rules) y librerías IPC verificadas"
       ]
     },
-    enfoqueCompetencia: "WRO",
+    enfoqueCompetencia: "General",
     requisitos: [
-      "Ser docente, instructor, laboratorista o directivo escolar.",
-      "No se requiere experiencia técnica previa avanzada: partimos desde cero absoluto.",
-      "Disponer de una computadora para Arduino IDE."
+      "Conocimientos básicos de electricidad o electrónica (resistencias, capacitores, microcontroladores).",
+      "Computadora con Windows para ejecutar Altium Designer.",
+      "Registro activo en certimexico.com (incluido con tu inscripción) para la emisión de tu DC-3."
     ],
     loQueAprenderas: [
-      "Metodología STEAM aplicada al aula con retos gamificados por equipos",
-      "Paso a paso para ensamblar y diagnosticar los kits de Mr-Robotto (Brazos y Seguidores)",
-      "Gestión de componentes y prevención de averías comunes en laboratorio escolar",
-      "Diseño de rúbricas de evaluación por competencias alineadas a planes de estudio oficiales",
-      "Preparación de equipos estudiantiles para torneos regionales y nacionales de WRO/SOLACyT"
+      "Flujo completo de ingeniería de hardware: del diagrama esquemático al prototipo físico ensamblado",
+      "Creación de símbolos esquemáticos, footprints IPC y asociación de modelos 3D (.STEP)",
+      "Ruteo de PCB de 2 y 4 capas, planos de alimentación (Power Planes) y blindaje contra ruido EMI/EMC",
+      "Diseño de fuentes conmutadas e integración de microcontroladores ESP32 y STM32 en tu propia placa",
+      "Generación de archivos Gerber X2, NC Drill, Pick & Place y lista de materiales (BOM) automatizada",
+      "Acreditación del proyecto práctico en certimexico.com para obtener tu constancia DC-3 STPS"
     ],
     modulos: [
       {
-        id: "doc-m1",
-        titulo: "Módulo 1: Pedagogía STEAM y Estructura del Taller de Robótica",
-        descripcion: "Cómo organizar el espacio de trabajo, roles de alumnos y dinámicas de aprendizaje.",
+        id: "alt-m1",
+        titulo: "Módulo 1: Captura Esquemática Profesional y Librerías IPC en Altium",
+        descripcion: "Arquitectura de proyectos en Altium Designer, creación de componentes desde hoja de datos y validación ERC.",
         lecciones: [
           {
-            id: "lec-doc-1-1",
-            titulo: "1.1 Bienvenida y Estructura Curricular del Taller Escolar",
-            duracion: "18:30",
-            resumen: "Definición del calendario de actividades, objetivos pedagógicos y selección de kits según la edad de los estudiantes.",
+            id: "lec-alt-1-1",
+            titulo: "1.1 Entorno Altium Designer y Proceso de Certificación DC-3 en certimexico.com",
+            duracion: "18:40",
+            resumen:
+              "Bienvenida al programa, configuración de preferencias de ingeniería en Altium y guía de registro en certimexico.com para acreditar tu constancia laboral STPS.",
             videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
             esGratis: true,
             recursos: [
-              { nombre: "Planeación Didáctica Escolar de 16 Semanas (PDF)", tipo: "pdf", url: "#", peso: "1.8 MB" }
+              { nombre: "Guía de Certificación DC-3 en certimexico.com (PDF)", tipo: "pdf", url: "https://certimexico.com", peso: "1.4 MB" }
             ]
           },
           {
-            id: "lec-doc-1-2",
-            titulo: "1.2 Gestión del Material y Protocolos de Seguridad Eléctrica en el Aula",
-            duracion: "22:15",
-            resumen: "Reglas para el manejo de baterías LiPo, cautines y organización de kits para evitar pérdidas de componentes.",
+            id: "lec-alt-1-2",
+            titulo: "1.2 Diseño de Librerías: Símbolos, Huellas SMD (Footprints) y Modelos 3D STEP",
+            duracion: "26:15",
+            resumen:
+              "Cómo leer las dimensiones mecánicas de un datasheet y construir footprints libres de errores de soldadura.",
+            esGratis: false
+          }
+        ]
+      },
+      {
+        id: "alt-m2",
+        titulo: "Módulo 2: Layout Multicapa, Reglas DRC y Manufactura PCBA",
+        descripcion: "Emplazamiento estratégico de componentes, ruteo interactivo y salida a fábrica.",
+        lecciones: [
+          {
+            id: "lec-alt-2-1",
+            titulo: "2.1 Ruteo de Potencia, Señales Diferenciales USB y Planos GND",
+            duracion: "31:20",
+            resumen:
+              "Cálculo de ancho de pista por corriente según norma IPC-2221 y ruteo de par diferencial USB para ESP32.",
+            esGratis: false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "curso-dc3-kicad-ia",
+    slug: "diseno-electronico-kicad-inteligencia-artificial-dc3",
+    titulo: "Curso de Diseño Electrónico con KiCad + Inteligencia Artificial (DC-3)",
+    descripcionCorta:
+      "Aprende a diseñar PCBs profesionales sin pagar licencias usando KiCad potenciado con herramientas de IA para lectura de datasheets, cálculo de circuitos y automatización. Certificación DC-3 en certimexico.com.",
+    descripcionLarga:
+      "El diseño electrónico moderno ha cambiado para siempre. En este programa aprenderás a dominar KiCad (la suite EDA de código abierto más potente del mundo usada hasta por el CERN) acelerando tu flujo de trabajo x5 mediante Inteligencia Artificial: análisis instantáneo de hojas de datos en PDF con IA, selección automática de componentes en stock, generación de scripts en Python para posicionar componentes y revisión inteligente de esquemáticos. Incluye acreditación oficial DC-3 ante la STPS realizada directamente en certimexico.com.",
+    nivel: "Principiante",
+    categoria: "Diseño Electrónico & PCB",
+    instructor: {
+      nombre: "Ing. David Almonte",
+      rol: "Diseñador de Sistemas Embebidos con IA / Instructor Certificado en certimexico.com",
+      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
+      certificaciones: "Acreditador Oficial DC-3 en certimexico.com • Especialista KiCad & Edge AI"
+    },
+    portada: "https://images.unsplash.com/photo-1555680202-c86f0e12f086?auto=format&fit=crop&w=800&q=80",
+    duracionTotal: "40 horas con valor curricular STPS (28 lecciones en video HD)",
+    totalLecciones: 28,
+    calificacion: 4.99,
+    precio: 1750,
+    precioOriginal: 2500,
+    esPremium: true,
+    certificacionDC3: {
+      incluida: true,
+      claveRegistroSTPS: "STPS-CERTIMEXICO-KICAD-2026",
+      horasAcreditadas: 40,
+      areaTematica: "Diseño Electrónico Asistido por computadora (KiCad) e Inteligencia Artificial",
+      agenteCapacitador: "CertiMéxico (certimexico.com) — Centro Certificador Oficial STPS",
+      plataformaCertificadoraNombre: "certimexico.com",
+      plataformaCertificadoraUrl: "https://certimexico.com",
+      beneficios: [
+        "Emisión de Constancia Oficial DC-3 STPS a través del portal oficial certimexico.com",
+        "Flujo de trabajo de última generación combinando software libre industrial (KiCad) con copilotos de IA",
+        "Diseña tu propia tarjeta controladora de robótica con ESP32 lista para pedir ensamblada de fábrica",
+        "Acceso vitalicio a prompts de ingeniería electrónica, plugins de KiCad y librerías verificadas"
+      ]
+    },
+    enfoqueCompetencia: "General",
+    requisitos: [
+      "No requiere experiencia previa diseñando PCBs: empezamos desde cero paso a paso.",
+      "Compatible con Windows, macOS y Linux (KiCad es 100% gratuito y sin límites de tamaño de placa).",
+      "Acceso a internet para realizar la evaluación final de certificación en certimexico.com."
+    ],
+    loQueAprenderas: [
+      "Dominio integral de KiCad: Editor de Esquemas, Editor de PCB, Visor 3D con Raytracing y Gestor de Librerías",
+      "Ingeniería asistida por IA: cómo usar modelos de IA para extraer circuitos típicos de aplicación de datasheets complejos",
+      "Automatización con Python en KiCad: scripts generados con IA para colocar matrices de LEDs, conectores y trazas",
+      "Verificación inteligente de errores comunes (pines sin conectar, inversión de polaridad, desacoplo de capacitores)",
+      "Cómo pedir tus placas fabricadas y soldadas con componentes SMD por menos de $10 USD",
+      "Evaluación práctica en certimexico.com para descargar tu constancia oficial DC-3 STPS"
+    ],
+    modulos: [
+      {
+        id: "kic-m1",
+        titulo: "Módulo 1: Fundamentos de KiCad + Copilotos de IA para Ingeniería Electrónica",
+        descripcion: "Instalación del ecosistema KiCad, plugins esenciales y metodología de diseño asistido por IA.",
+        lecciones: [
+          {
+            id: "lec-kic-1-1",
+            titulo: "1.1 Introducción a KiCad + IA y Acreditación Oficial en certimexico.com",
+            duracion: "17:15",
+            resumen:
+              "Cómo la Inteligencia Artificial multiplica la velocidad del diseñador electrónico y cómo funciona tu certificación DC-3 en certimexico.com.",
+            videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+            esGratis: true,
+            recursos: [
+              { nombre: "Portal de Certificación Oficial certimexico.com", tipo: "link", url: "https://certimexico.com", peso: "Web" }
+            ]
+          },
+          {
+            id: "lec-kic-1-2",
+            titulo: "1.2 Análisis de Datasheets con IA y Captura Esquemática de Tarjeta ESP32",
+            duracion: "24:50",
+            resumen:
+              "Extracción automática de valores de capacitores de desacoplo, circuito de auto-reset y regulador LDO usando IA.",
+            esGratis: false
+          }
+        ]
+      },
+      {
+        id: "kic-m2",
+        titulo: "Módulo 2: Ruteo de PCB, Renderizado 3D y Automatización para Fábrica",
+        descripcion: "Diseño físico de la tarjeta controladora para robots de 4 y 6 GDL y envío a manufactura.",
+        lecciones: [
+          {
+            id: "lec-kic-2-1",
+            titulo: "2.1 Ruteo de Pistas, Planos de Cobre y Exportación Un-Clic para Ensamblaje SMT",
+            duracion: "29:10",
+            resumen:
+              "Generación automática de archivos Gerber, Posición (CPL) y BOM compatibles con ensamblaje robotizado.",
+            esGratis: false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "curso-altium-pcb-maker",
+    slug: "diseno-electronico-pcb-altium-designer",
+    titulo: "Curso de Diseño Electrónico y PCB Profesional con Altium Designer (Edición Maker)",
+    descripcionCorta:
+      "Domina el estándar de la industria para diseño esquemático y ruteo de PCBs multicapa con Altium Designer. Modalidad práctica de autoestudio maker sin arancel de certificación STPS.",
+    descripcionLarga:
+      "Aprende a diseñar tarjetas electrónicas profesionales con Altium Designer a tu propio ritmo. Desde la captura esquemática jerárquica y creación de librerías con modelos 3D STEP, hasta el ruteo diferencial, planos de tierra, control de impedancia y exportación de archivos Gerber/BOM para JLCPCB o PCBWay. Esta edición maker está diseñada para autodidactas y entusiastas que buscan la máxima calidad de aprendizaje técnico al precio más accesible sin requerir trámite de constancia laboral STPS.",
+    nivel: "Intermedio",
+    categoria: "Diseño Electrónico & PCB",
+    instructor: {
+      nombre: "M. en C. Roberto Palacios",
+      rol: "Especialista en Diseño de Hardware Industrial",
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+      certificaciones: "Senior PCB Designer • Instructor de Hardware Embebido"
+    },
+    portada: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+    duracionTotal: "30 lecciones en video HD (Acceso ilimitado)",
+    totalLecciones: 30,
+    calificacion: 4.99,
+    precio: 890,
+    precioOriginal: 1490,
+    esPremium: true,
+    certificacionDC3: {
+      incluida: false,
+      claveRegistroSTPS: "",
+      horasAcreditadas: 0,
+      areaTematica: "Diseño Electrónico Maker con Altium Designer",
+      agenteCapacitador: "Mr-Robotto Academy",
+      beneficios: [
+        "Acceso completo e ilimitado a todas las lecciones en video HD y proyectos de práctica",
+        "Plantillas profesionales de reglas de diseño (Design Rules) y librerías IPC verificadas",
+        "Archivos de proyecto completos descargables para Altium Designer",
+        "Opción de actualizar a la versión certificada DC-3 posteriormente cubriendo la diferencia"
+      ]
+    },
+    enfoqueCompetencia: "General",
+    requisitos: [
+      "Conocimientos básicos de electrónica (resistencias, capacitores, microcontroladores).",
+      "Computadora con Windows para ejecutar Altium Designer."
+    ],
+    loQueAprenderas: [
+      "Flujo completo de diseño: del diagrama esquemático a la tarjeta física",
+      "Creación de símbolos esquemáticos, huellas SMD (footprints) y modelos 3D (.STEP)",
+      "Ruteo de PCB de 2 y 4 capas, planos de tierra y blindaje contra ruido EMI",
+      "Generación de archivos Gerber X2, NC Drill y lista de materiales (BOM)"
+    ],
+    modulos: [
+      {
+        id: "alt-m1-maker",
+        titulo: "Módulo 1: Captura Esquemática Profesional y Librerías IPC en Altium",
+        descripcion: "Arquitectura de proyectos en Altium Designer, creación de componentes desde hoja de datos y validación ERC.",
+        lecciones: [
+          {
+            id: "lec-alt-m1-1",
+            titulo: "1.1 Entorno Altium Designer y Configuración Inicial",
+            duracion: "18:40",
+            resumen: "Bienvenida al programa, configuración de preferencias de ingeniería y flujo de trabajo.",
+            videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+            esGratis: true
+          },
+          {
+            id: "lec-alt-m1-2",
+            titulo: "1.2 Diseño de Librerías: Símbolos, Huellas SMD y Modelos 3D STEP",
+            duracion: "26:15",
+            resumen: "Cómo leer las dimensiones mecánicas de un datasheet y construir footprints sin errores.",
+            esGratis: false
+          }
+        ]
+      },
+      {
+        id: "alt-m2-maker",
+        titulo: "Módulo 2: Layout Multicapa, Reglas DRC y Manufactura PCBA",
+        descripcion: "Emplazamiento estratégico de componentes, ruteo interactivo y salida a fábrica.",
+        lecciones: [
+          {
+            id: "lec-alt-m2-1",
+            titulo: "2.1 Ruteo de Potencia, Señales Diferenciales USB y Planos GND",
+            duracion: "31:20",
+            resumen: "Cálculo de ancho de pista por corriente según norma IPC-2221 y ruteo diferencial.",
+            esGratis: false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "curso-kicad-ia-maker",
+    slug: "diseno-electronico-kicad-inteligencia-artificial",
+    titulo: "Curso de Diseño Electrónico con KiCad + Inteligencia Artificial (Edición Maker)",
+    descripcionCorta:
+      "Aprende a diseñar PCBs profesionales con la suite libre KiCad acelerada por Inteligencia Artificial para datasheets y scripts. Modalidad de autoestudio maker a precio accesible.",
+    descripcionLarga:
+      "El diseño electrónico moderno ha cambiado para siempre. En este programa aprenderás a dominar KiCad (la suite EDA de código abierto usada por ingenieros en todo el mundo) acelerando tu flujo de trabajo x5 mediante Inteligencia Artificial: análisis de hojas de datos con IA, selección de componentes, scripts en Python y revisión de esquemáticos. Esta versión maker te brinda el contenido formativo completo a un precio reducido sin aranceles de certificación laboral STPS.",
+    nivel: "Principiante",
+    categoria: "Diseño Electrónico & PCB",
+    instructor: {
+      nombre: "Ing. David Almonte",
+      rol: "Diseñador de Sistemas Embebidos con IA",
+      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
+      certificaciones: "Especialista en KiCad & Edge AI"
+    },
+    portada: "https://images.unsplash.com/photo-1555680202-c86f0e12f086?auto=format&fit=crop&w=800&q=80",
+    duracionTotal: "28 lecciones en video HD (Acceso vitalicio)",
+    totalLecciones: 28,
+    calificacion: 4.99,
+    precio: 690,
+    precioOriginal: 1190,
+    esPremium: true,
+    certificacionDC3: {
+      incluida: false,
+      claveRegistroSTPS: "",
+      horasAcreditadas: 0,
+      areaTematica: "Diseño Electrónico Libre con KiCad e IA",
+      agenteCapacitador: "Mr-Robotto Academy",
+      beneficios: [
+        "Acceso ilimitado de por vida a los 28 videos en alta definición y recursos descargables",
+        "Colección de prompts especializados para análisis de datasheets y esquemáticos con IA",
+        "Diseño paso a paso de una tarjeta controladora para robots con microcontrolador ESP32",
+        "Opción de solicitar evaluación para constancia oficial DC-3 posteriormente en certimexico.com"
+      ]
+    },
+    enfoqueCompetencia: "General",
+    requisitos: [
+      "No requiere experiencia previa diseñando circuitos impresos: arrancamos desde cero.",
+      "KiCad es 100% gratuito y compatible con Windows, Mac y Linux."
+    ],
+    loQueAprenderas: [
+      "Dominio de KiCad: Editor de Esquemas, Ruteo de PCB y Render 3D con Raytracing",
+      "Copilotos de IA para extraer circuitos típicos de hojas de datos complejas en segundos",
+      "Automatización con scripts Python generados con IA para tareas repetitivas",
+      "Cómo ordenar tus tarjetas fabricadas y ensambladas de fábrica por menos de $10 USD"
+    ],
+    modulos: [
+      {
+        id: "kic-m1-maker",
+        titulo: "Módulo 1: Fundamentos de KiCad + Copilotos de IA para Ingeniería Electrónica",
+        descripcion: "Instalación de KiCad, plugins esenciales y metodología de diseño asistido por IA.",
+        lecciones: [
+          {
+            id: "lec-kic-m1-1",
+            titulo: "1.1 Introducción a KiCad + IA: Multiplicando la Productividad Maker",
+            duracion: "17:15",
+            resumen: "Cómo la Inteligencia Artificial acelera los tiempos de desarrollo en hardware.",
+            videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+            esGratis: true
+          },
+          {
+            id: "lec-kic-m1-2",
+            titulo: "1.2 Análisis de Datasheets con IA y Captura Esquemática con ESP32",
+            duracion: "24:50",
+            resumen: "Extracción automática de circuitos de soporte y desacoplo para microcontrolador ESP32.",
+            esGratis: false
+          }
+        ]
+      },
+      {
+        id: "kic-m2-maker",
+        titulo: "Módulo 2: Ruteo de PCB, Renderizado 3D y Salida a Fábrica",
+        descripcion: "Diseño físico de la tarjeta controladora y exportación de archivos de manufactura.",
+        lecciones: [
+          {
+            id: "lec-kic-m2-1",
+            titulo: "2.1 Ruteo de Pistas, Planos de Tierra y Exportación para JLCPCB/PCBWay",
+            duracion: "29:10",
+            resumen: "Generación de archivos Gerber, taladrado y lista BOM lista para producción.",
             esGratis: false
           }
         ]
@@ -472,16 +769,16 @@ export const CURSOS_PREMIUM_MRROBOTTO: CursoPremium[] = [
   {
     id: "curso-brazo-robotico-premium",
     slug: "masterclass-brazo-robotico-4dof-control-cinematica",
-    titulo: "Masterclass Premium: Ensamblaje, Cinemática y Control del Brazo Robótico",
+    titulo: "Masterclass Premium: Ensamblaje, Doble Joystick y Visión Artificial para Brazos Robóticos",
     descripcionCorta:
-      "Aprende a construir, calibrar y programar rutinas de pick-and-place, cinemática directa/inversa y control por joystick o smartphone para el Brazo Robótico 4-DoF de Mr-Robotto.",
+      "Aprende a construir, calibrar y programar rutinas de pick-and-place, plantilla de control con 2 joysticks y actualización a Visión Artificial con Python + ESP32.",
     descripcionLarga:
-      "El curso oficial de acompañamiento para el Kit de Brazo Robótico Mr-Robotto. Desglosa desde la colocación de cada tornillo y centrado de los ejes de servomotores a 90 grados, hasta la programación de algoritmos de cinemática para mover la pinza a coordenadas (X, Y, Z) en el espacio tridimensional.",
+      "El curso oficial de acompañamiento para los Kits de Brazo Robótico de 4 GDL y 6 GDL de Mr-Robotto. Desglosa desde el ensamblaje mecánico y centrado de los ejes de servomotores a 90 grados, hasta el cableado de la plantilla de control con dos joysticks analógicos y la migración a Visión Artificial con Python (MediaPipe) y ESP32.",
     nivel: "Intermedio",
     categoria: "Cursos de Kits",
     instructor: {
       nombre: "Ing. David Almonte",
-      rol: "Ingeniero Mecatrónico y Diseñador del Kit de Brazo Robótico Mr-Robotto",
+      rol: "Ingeniero Mecatrónico y Diseñador de los Kits Mr-Robotto",
       avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80"
     },
     portada: "https://images.unsplash.com/photo-1563770660941-20978e870e26?auto=format&fit=crop&w=800&q=80",
@@ -499,28 +796,28 @@ export const CURSOS_PREMIUM_MRROBOTTO: CursoPremium[] = [
       agenteCapacitador: "Mr-Robotto Capacitación Técnica",
       beneficios: [
         "Diploma digital de acreditación del curso",
-        "Códigos y bibliotecas listas para cinemática inversa en Arduino y ESP32",
+        "Códigos para plantilla de doble joystick y scripts de Visión Artificial en Python",
         "Archivos STL de refacciones y mejoras impresas para el brazo"
       ]
     },
     enfoqueCompetencia: "General",
     requisitos: [
-      "Kit de Brazo Robótico Mr-Robotto (o piezas impresas compatibles).",
+      "Kit de Brazo Robótico Mr-Robotto (4 GDL o 6 GDL).",
       "Arduino Uno, Nano o ESP32 con cable USB.",
-      "Fuente de poder de 5V 3A para alimentar servomotores."
+      "Fuente de poder de 5V para alimentar servomotores."
     ],
     loQueAprenderas: [
       "Ensamblaje mecánico correcto evitando holguras y calibración de servos a 90°",
-      "Distribución de corriente de potencia vs lógica para evitar caídas de tensión (brownouts)",
+      "Cableado y mapeo de la plantilla de control con 2 joysticks analógicos",
       "Programación de secuencias de memoria: grabación y repetición de trayectorias (Pick & Place)",
-      "Matemáticas de trigonometría y cinemática inversa bidimensional",
-      "Comunicación inalámbrica Bluetooth con aplicación móvil para control manual"
+      "Matemáticas de trigonometría y cinemática inversa práctica",
+      "Integración con Python y OpenCV/MediaPipe para control gestual por cámara"
     ],
     modulos: [
       {
         id: "br-m1",
-        titulo: "Módulo 1: Ensamblaje Mecánico y Calibración Inicial",
-        descripcion: "Montaje de base, hombro, codo y garra sin forzar los topes de los engranes.",
+        titulo: "Módulo 1: Ensamblaje Mecánico, Centrado de Servos y Plantilla de Doble Joystick",
+        descripcion: "Montaje de base, hombro, codo, garra y estación de mando dual.",
         lecciones: [
           {
             id: "lec-br-1-1",
@@ -533,287 +830,64 @@ export const CURSOS_PREMIUM_MRROBOTTO: CursoPremium[] = [
         ]
       }
     ]
+  }
+];
+
+export const BLOQUES_CAPACITACION_MRROBOTTO: BloqueCapacitacionHora[] = [
+  {
+    id: "bloque-asesoria-5h",
+    titulo: "Bloque de Asesoría & Diagnóstico Técnico",
+    horas: 5,
+    subtitulo: "Resolución de fallas, calibración de hardware y puesta a punto de prototipos",
+    descripcion:
+      "Sesiones 1 a 1 enfocadas en destrabar problemas técnicos específicos: puesta en marcha de sensores, corrección de conexiones, calibración de actuadores y optimización de código en Arduino o ESP32.",
+    dirigidoA: "Docentes independientes, clubes escolares que inician o proyectos con fallas de hardware.",
+    incluye: [
+      "Diagnóstico exhaustivo de componentes y esquemas de conexión",
+      "Calibración de sensores ópticos, ultrasónicos y servomotores",
+      "Revisión y depuración de código en C++ (Arduino IDE) o MicroPython",
+      "Factura fiscal con CFDI disponible para instituciones",
+      "Sesiones interactivas por Google Meet o Zoom con grabación disponible"
+    ],
+    badge: "5 Horas • Rápido Impacto",
+    badgeColor: "bg-sky-50 text-sky-700 border-sky-200"
   },
   {
-    id: "curso-dc3-robotica-industrial",
-    slug: "certificacion-dc3-robotica-automatizacion",
-    titulo: "Certificación DC-3: Robótica Móvil, Microcontroladores y Automatización Industrial",
-    descripcionCorta:
-      "Obtén la Constancia Oficial de Competencias Laborales (Formato DC-3 de la STPS) válida a nivel nacional en México. Domina programación en C++, arquitectura embebida y control de potencia.",
-    descripcionLarga:
-      "Programa de alta especialización técnica avalado ante la Secretaría del Trabajo y Previsión Social (STPS). Aprende desde la instrumentación analógica y digital con microcontroladores hasta el diseño de bucles de control PID para robots móviles y maquinaria industrial pequeña. Incluye emisión de constancia oficial DC-3 con código de registro y verificación digital.",
-    nivel: "Intermedio",
-    categoria: "Automatización & PLC",
-    instructor: {
-      nombre: "M. en C. Roberto Palacios",
-      rol: "Agente Capacitador Externo Registrado STPS / Especialista en Automatización",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-      certificaciones: "Registro STPS: PARM-850412-STP • Senior Member IEEE Robotics"
-    },
-    portada: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80",
-    duracionTotal: "40 horas con valor curricular (32 lecciones en video HD)",
-    totalLecciones: 32,
-    calificacion: 4.98,
-    precio: 1850,
-    precioOriginal: 2600,
-    esPremium: true,
-    certificacionDC3: {
-      incluida: true,
-      claveRegistroSTPS: "STPS-CAP-MRB-2026/894",
-      horasAcreditadas: 40,
-      areaTematica: "Tecnologías de la Información, Robótica y Automatización",
-      agenteCapacitador: "Mr-Robotto Capacitación Técnica S.A.S.",
-      beneficios: [
-        "Emisión de constancia oficial en formato DC-3 con firma y sello del Agente Capacitador",
-        "Valor curricular oficial para ascensos laborales y cumplimiento de normatividad STPS",
-        "Revisión y retroalimentación de código por parte de ingenieros de soporte",
-        "Acceso vitalicio al material, esquemas de circuitos y actualizaciones"
-      ]
-    },
-    enfoqueCompetencia: "General",
-    requisitos: [
-      "Conocimientos básicos de computación y aritmética elemental.",
-      "Placa de desarrollo Arduino Uno/Nano o ESP32 con cable de datos.",
-      "Residir en México para la emisión del documento oficial DC-3 con CURP (o recibir certificado internacional si resides en el extranjero)."
+    id: "bloque-taller-docente-10h",
+    titulo: "Capacitación Docente STEAM & Gestión de Aula",
+    horas: 10,
+    subtitulo: "Metodología pedagógica, rúbricas de evaluación y planeación curricular escolar",
+    descripcion:
+      "Formación integral para profesores y directivos que desean implementar talleres o materias extracurriculares de robótica educativa utilizando kits Mr-Robotto (Robot Otto y Brazos 4/6 GDL).",
+    dirigidoA: "Profesores de primaria alta, secundaria, bachillerato y coordinadores de tecnología.",
+    incluye: [
+      "Estructuración de dinámicas de clase y trabajo por equipos en el aula",
+      "Planeaciones didácticas de 16 semanas y rúbricas de evaluación por competencias",
+      "Ensamblaje guiado y mantenimiento preventivo para evitar pérdidas de componentes",
+      "Paquetes escolares con descuento por volumen en kits de práctica",
+      "Facturación formal con CFDI para colegios y universidades"
     ],
-    loQueAprenderas: [
-      "Marco normativo laboral de seguridad en automatización industrial (NOM-004-STPS)",
-      "Programación estructurada en C/C++ embebido y gestión de interrupciones de hardware",
-      "Control de actuadores industriales: relevadores de estado sólido, servomotores y variadores de frecuencia simples",
-      "Diseño de interfaces hombre-máquina (HMI) compactas con pantallas OLED y teclados matriciales",
-      "Protocolos industriales serie: Modbus RTU básico, UART y bus I2C con aislamiento galvánico",
-      "Construcción y presentación de proyecto técnico final para acreditación de la constancia DC-3"
-    ],
-    modulos: [
-      {
-        id: "m1-dc3",
-        titulo: "Módulo 1: Fundamentos Normativos y Arquitectura de Control",
-        descripcion: "Reglamentación STPS, seguridad eléctrica y manejo de entradas/salidas protegidas.",
-        lecciones: [
-          {
-            id: "lec-dc3-1-1",
-            titulo: "1.1 Introducción a la Capacitación Técnica DC-3 y Normas de Seguridad",
-            duracion: "16:20",
-            resumen:
-              "Explicación del formato oficial DC-3, requisitos de evaluación, prevención de riesgos por arco eléctrico y protección de tarjetas electrónicas contra descargas electrostáticas (ESD).",
-            videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-            esGratis: true,
-            recursos: [
-              { nombre: "Guía Oficial de Certificación DC-3 STPS (PDF)", tipo: "pdf", url: "#", peso: "1.5 MB" }
-            ]
-          },
-          {
-            id: "lec-dc3-1-2",
-            titulo: "1.2 Aislamiento Galvánico con Optoacopladores y Relevadores",
-            duracion: "22:45",
-            resumen:
-              "Cómo proteger las salidas del microcontrolador frente a cargas inductivas utilizando optoacopladores PC817 y diodos flyback 1N4007.",
-            esGratis: false
-          }
-        ]
-      },
-      {
-        id: "m2-dc3",
-        titulo: "Módulo 2: Sensores Industriales y Acondicionamiento de Señal",
-        descripcion: "Transmisores de corriente 4-20mA, divisores de tensión de precisión y filtrado digital.",
-        lecciones: [
-          {
-            id: "lec-dc3-2-1",
-            titulo: "2.1 Lectura de Señales Analógicas Ruidosas y Filtros Media Móvil",
-            duracion: "19:15",
-            resumen:
-              "Técnicas de software para limpiar lecturas de sensores térmicos y de presión en entornos con interferencia electromagnética de motores.",
-            esGratis: false
-          }
-        ]
-      }
-    ]
+    badge: "10 Horas • Más Solicitado",
+    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    destacado: true
   },
   {
-    id: "curso-wro-solacyt-master",
-    slug: "preparacion-olimpiadas-wro-solacyt",
-    titulo: "Masterclass: Robótica de Competición WRO y Torneos SOLACyT Infomatrix",
-    descripcionCorta:
-      "Aprende las estrategias mecánicas, algoritmos de seguimiento de línea de alta velocidad con control PID y visión por sensores que usan los equipos campeones mundiales.",
-    descripcionLarga:
-      "Tanto la World Robot Olympiad (WRO) como los torneos de la Sociedad Latinoamericana de Ciencia y Tecnología (SOLACyT / Infomatrix y Robomatrix) exigen un nivel de ingeniería y resolución autónoma muy por encima de los proyectos escolares convencionales. En este curso desarmamos las mejores arquitecturas mecánicas, la física de la adherencia en pista y los algoritmos de control PID en tiempo real.",
-    nivel: "Avanzado",
-    categoria: "Robótica WRO / SOLACyT",
-    instructor: {
-      nombre: "Ing. David Almonte",
-      rol: "Coach Olímpico WRO México / Ganador Medalla de Oro Infomatrix Sudamérica",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80"
-    },
-    portada: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80",
-    duracionTotal: "25 horas de entrenamiento táctico (20 lecciones)",
-    totalLecciones: 20,
-    calificacion: 4.96,
-    precio: 1250,
-    precioOriginal: 1950,
-    esPremium: true,
-    certificacionDC3: {
-      incluida: true,
-      claveRegistroSTPS: "STPS-CAP-MRB-2026/721",
-      horasAcreditadas: 25,
-      areaTematica: "Desarrollo de Soluciones de Robótica Móvil Avanzada",
-      agenteCapacitador: "Mr-Robotto Capacitación Técnica S.A.S.",
-      beneficios: [
-        "Diploma avalado ante la STPS y certificación técnica de entrenador/competidor",
-        "Acceso al repositorio de algoritmos PID sintonizados para pistas oficiales",
-        "Sesiones mensuales de mentoría y resolución de retos de las temporadas vigentes"
-      ]
-    },
-    enfoqueCompetencia: "WRO",
-    requisitos: [
-      "Conocimientos intermedios de Arduino o ESP32 en C++.",
-      "Chasis móvil de competencia (preferentemente con encoders magnéticos).",
-      "Ganas de competir o asesorar equipos escolares en torneos nacionales e internacionales."
+    id: "bloque-torneo-olimpico-20h",
+    titulo: "Entrenamiento Intensivo WRO & Torneos SOLACyT",
+    horas: 20,
+    subtitulo: "Hardware homologado de torneo, control PID de alta velocidad y estrategia de pista",
+    descripcion:
+      "Acompañamiento técnico de alto rendimiento para equipos estudiantiles y coaches que competirán en World Robot Olympiad (RoboMission) o torneos SOLACyT (Infomatrix/Robomatrix en seguidor de línea y mini sumo).",
+    dirigidoA: "Clubes de robótica de competición, universidades y competidores que buscan podio.",
+    incluye: [
+      "Interpretación estratégica del reglamento oficial de la temporada",
+      "Implementación de algoritmo de control PID en tiempo real con muestreo constante",
+      "Selección de componentes homologados: turbinas, tracción, sensores de alto contraste",
+      "Simulación de pistas oficiales y resolución del reto sorpresa",
+      "Revisión del portafolio técnico y defensa argumentada ante el jurado calificador"
     ],
-    loQueAprenderas: [
-      "Interpretación estratégica del reglamento de la temporada WRO (Reglas generales y de sorpresa)",
-      "Cálculo matemático de relaciones de engranajes y centro de gravedad para máxima estabilidad",
-      "Implementación matemática de algoritmo PID (Proporcional, Integral y Derivativo) con tiempo de muestreo constante",
-      "Calibración automática de barras de sensores ópticos ante distintas tonalidades de pista",
-      "Algoritmos de búsqueda de salida de laberintos y evasión rápida de obstáculos",
-      "Diseño del portafolio técnico y defensa del proyecto ante el jurado calificador de SOLACyT"
-    ],
-    modulos: [
-      {
-        id: "wro-m1",
-        titulo: "Módulo 1: Estrategia de Reglamento y Cinemática de Alta Velocidad",
-        descripcion: "Secretos de diseño mecánico, selección de ruedas de silicona y análisis de pistas.",
-        lecciones: [
-          {
-            id: "lec-wro-1-1",
-            titulo: "1.1 Desglosando el Reglamento WRO y Criterios de Evaluación SOLACyT",
-            duracion: "24:10",
-            resumen:
-              "Cómo sumar la mayor cantidad de puntos en el menor tiempo posible, evitando penalizaciones por contacto o salida de pista.",
-            esGratis: true
-          }
-        ]
-      },
-      {
-        id: "wro-m2",
-        titulo: "Módulo 2: Algoritmo PID de Seguimiento y Calibración en Vivo",
-        descripcion: "Programación del lazo cerrado de control con corrección milimétrica de trayectoria.",
-        lecciones: [
-          {
-            id: "lec-wro-2-1",
-            titulo: "2.1 Código Maestro PID en Arduino / ESP32 para Barras de 8 Sensores",
-            duracion: "31:40",
-            resumen:
-              "Cálculo del error ponderado, sintonización de constantes Kp, Ki y Kd, y ajuste dinámico en curvas pronunciadas.",
-            codigoArduino: `/*
- * Control PID para Seguidor de Línea de Competición
- * Mr-Robotto Academy - Especial WRO / SOLACyT
- */
-
-// Constantes de sintonización PID
-float Kp = 0.28;
-float Ki = 0.0001;
-float Kd = 1.45;
-
-int error = 0;
-int errorPrevio = 0;
-float integral = 0;
-float derivativo = 0;
-int correccion = 0;
-
-const int VELOCIDAD_BASE = 160;
-
-void setup() {
-  Serial.begin(115200);
-  // Inicialización de hardware
-}
-
-void loop() {
-  // 1. Leer barra reflectiva y calcular error (-100 a +100)
-  // error = calcularErrorSensores();
-
-  // 2. Cálculo de términos del controlador
-  integral += error;
-  integral = constrain(integral, -100, 100); // Anti-windup
-  derivativo = error - errorPrevio;
-
-  correccion = (Kp * error) + (Ki * integral) + (Kd * derivativo);
-  errorPrevio = error;
-
-  // 3. Aplicar velocidades a motores izquierdo y derecho
-  int velocidadIzq = constrain(VELOCIDAD_BASE + correccion, 0, 255);
-  int velocidadDer = constrain(VELOCIDAD_BASE - correccion, 0, 255);
-
-  // motorIzquierdo(velocidadIzq);
-  // motorDerecho(velocidadDer);
-}`,
-            esGratis: false
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: "curso-arduino-cero-mrb",
-    slug: "arduino-desde-cero-maker",
-    titulo: "Arduino y Microcontroladores desde Cero: Fundamentos a Proyectos Autónomos",
-    descripcionCorta:
-      "Aprende electrónica práctica y programación en C++ para microcontroladores desde lo más básico. Diseña circuitos, domina sensores y crea tus primeros sistemas automatizados.",
-    descripcionLarga:
-      "Este curso práctico te guiará paso a paso por la arquitectura del microcontrolador ATmega328P de Arduino, el entorno Arduino IDE 2.x, las leyes esenciales de Ohm y Kirchhoff aplicadas a circuitos maker, y la lectura/escritura de señales digitales y analógicas.",
-    nivel: "Principiante",
-    categoria: "Arduino & Maker",
-    instructor: {
-      nombre: "Ing. Fidel Ramos",
-      rol: "Especialista en Sistemas Embebidos y Robótica Educativa",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
-    },
-    portada: "https://images.unsplash.com/photo-1555680202-c86f0e12f086?auto=format&fit=crop&w=800&q=80",
-    duracionTotal: "12 horas (28 lecciones en video HD)",
-    totalLecciones: 28,
-    calificacion: 4.9,
-    precio: 490,
-    precioOriginal: 850,
-    esPremium: false,
-    certificacionDC3: {
-      incluida: false,
-      claveRegistroSTPS: "STPS-OPC-MRB-2026/102",
-      horasAcreditadas: 15,
-      areaTematica: "Fundamentos de Hardware Libre",
-      agenteCapacitador: "Mr-Robotto Capacitación Técnica",
-      beneficios: [
-        "Diploma de acreditación de curso básico",
-        "Opción de trámite de certificado DC-3 al culminar proyecto integrador"
-      ]
-    },
-    enfoqueCompetencia: "General",
-    requisitos: [
-      "No se requieren conocimientos previos de programación ni electrónica.",
-      "Placa Arduino Uno, Nano o compatible con cable USB."
-    ],
-    loQueAprenderas: [
-      "Arquitectura de microcontroladores y flujo de ejecución en tiempo real",
-      "Sintaxis de C++ aplicada al hardware: variables, funciones y condicionales",
-      "Lectura analógica y modulación por ancho de pulsos (PWM)",
-      "Control de servomotores y pantallas OLED por I2C"
-    ],
-    modulos: [
-      {
-        id: "m1-ard",
-        titulo: "Módulo 1: Fundamentos de Hardware y Entorno Arduino IDE",
-        descripcion: "Conoce las entrañas de la placa, instalación del software y tu primer circuito blink.",
-        lecciones: [
-          {
-            id: "lec-ard-1-1",
-            titulo: "1.1 Bienvenida y Anatomía de la Placa Arduino Uno",
-            duracion: "12:15",
-            resumen:
-              "Revisión de componentes: microcontrolador ATmega328P, reguladores de voltaje y convertidor USB-Serie.",
-            videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-            esGratis: true
-          }
-        ]
-      }
-    ]
+    badge: "20 Horas • Alto Rendimiento",
+    badgeColor: "bg-amber-50 text-amber-700 border-amber-200"
   }
 ];
 
@@ -1473,7 +1547,7 @@ void loop() {
     voltajeOperacion: "5V a 35V DC (motores) / 5V lógica",
     protocolo: "Control por niveles lógicos y señales PWM",
     tiempoEstimado: "25 min",
-    imagen: "https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=800&q=80",
+    imagen: "https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?auto=format&fit=crop&w=800&q=80",
     descripcion:
       "El driver clásico de tracción para robots de mini sumo, seguidores de línea y vehículos autónomos para olimpiadas escolares.",
     especificaciones: [

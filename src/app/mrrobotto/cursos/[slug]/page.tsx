@@ -19,7 +19,9 @@ export async function generateMetadata({ params }: Props) {
   if (!curso) return { title: "Curso no encontrado" };
 
   return {
-    title: `${curso.titulo} — Curso con Certificación DC-3`,
+    title: curso.certificacionDC3.incluida
+      ? `${curso.titulo} — Constancia DC-3 STPS vía certimexico.com`
+      : `${curso.titulo} — Mr-Robotto`,
     description: curso.descripcionCorta,
   };
 }

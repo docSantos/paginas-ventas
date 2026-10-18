@@ -27,7 +27,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const isCursosDC3Active = activeTab === "cursos-dc3" || (activeTab === "cursos" && !isCursosPremiumActive);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 safe-area-pb shadow-lg md:hidden">
       <div className="flex items-center justify-around h-16 max-w-2xl mx-auto px-1 sm:px-2">
         {/* Tab 1: Tienda */}
         {isHomePage && onTabChange ? (
@@ -35,8 +35,8 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             onClick={() => handleTabClick("tienda")}
             className={`flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 ${
               isTiendaActive
-                ? "text-red-500 font-bold"
-                : "text-slate-400 hover:text-slate-200"
+                ? "text-red-600 font-bold"
+                : "text-slate-500 hover:text-slate-900"
             }`}
           >
             <ShoppingBag className={`w-5 h-5 ${isTiendaActive ? "stroke-[2.5px]" : ""}`} />
@@ -45,7 +45,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
         ) : (
           <Link
             href="/mrrobotto?tab=tienda"
-            className="flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 text-slate-400 hover:text-slate-200"
+            className="flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 text-slate-500 hover:text-slate-900"
           >
             <ShoppingBag className="w-5 h-5" />
             <span className="text-[10px] tracking-tight truncate">Tienda</span>
@@ -58,8 +58,8 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             onClick={() => handleTabClick("tutoriales")}
             className={`flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 ${
               isTutorialesActive
-                ? "text-red-500 font-bold"
-                : "text-slate-400 hover:text-slate-200"
+                ? "text-red-600 font-bold"
+                : "text-slate-500 hover:text-slate-900"
             }`}
           >
             <BookOpen className={`w-5 h-5 ${isTutorialesActive ? "stroke-[2.5px]" : ""}`} />
@@ -68,7 +68,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
         ) : (
           <Link
             href="/mrrobotto?tab=tutoriales"
-            className="flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 text-slate-400 hover:text-slate-200"
+            className="flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 text-slate-500 hover:text-slate-900"
           >
             <BookOpen className="w-5 h-5" />
             <span className="text-[10px] tracking-tight truncate">Tutoriales</span>
@@ -81,17 +81,17 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             onClick={() => handleTabClick("cursos-premium")}
             className={`flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 ${
               isCursosPremiumActive
-                ? "text-red-500 font-bold"
-                : "text-slate-400 hover:text-slate-200"
+                ? "text-amber-600 font-bold"
+                : "text-slate-500 hover:text-slate-900"
             }`}
           >
-            <Sparkles className={`w-5 h-5 ${isCursosPremiumActive ? "stroke-[2.5px] text-amber-400" : ""}`} />
+            <Sparkles className={`w-5 h-5 ${isCursosPremiumActive ? "stroke-[2.5px] text-amber-600" : ""}`} />
             <span className="text-[10px] tracking-tight truncate">C. Premium</span>
           </button>
         ) : (
           <Link
             href="/mrrobotto?tab=cursos-premium"
-            className="flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 text-slate-400 hover:text-slate-200"
+            className="flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 text-slate-500 hover:text-slate-900"
           >
             <Sparkles className="w-5 h-5" />
             <span className="text-[10px] tracking-tight truncate">C. Premium</span>
@@ -104,8 +104,8 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             onClick={() => handleTabClick("cursos-dc3")}
             className={`flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 ${
               isCursosDC3Active
-                ? "text-amber-400 font-bold"
-                : "text-slate-400 hover:text-slate-200"
+                ? "text-amber-600 font-bold"
+                : "text-slate-500 hover:text-slate-900"
             }`}
           >
             <Award className={`w-5 h-5 ${isCursosDC3Active ? "stroke-[2.5px]" : ""}`} />
@@ -114,7 +114,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
         ) : (
           <Link
             href="/mrrobotto?tab=cursos-dc3"
-            className="flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 text-slate-400 hover:text-slate-200"
+            className="flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 text-slate-500 hover:text-slate-900"
           >
             <Award className="w-5 h-5" />
             <span className="text-[10px] tracking-tight truncate">Cursos DC-3</span>
@@ -124,7 +124,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
         {/* Tab 5: Hub */}
         <Link
           href="/"
-          className="flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 text-slate-400 hover:text-white"
+          className="flex flex-col items-center justify-center gap-1 px-1.5 py-1 rounded-xl transition-all flex-1 min-w-0 text-slate-500 hover:text-slate-900"
           title="Ir al Hub general"
         >
           <Home className="w-5 h-5" />

@@ -277,13 +277,14 @@ export function MarketPricesSection() {
                 setTimeframe('two_years');
                 setHoveredPoint(null);
               }}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              className={`px-2.5 sm:px-3 py-1 rounded-lg font-medium transition-all ${
                 timeframe === 'two_years'
                   ? 'bg-white text-stone-900 shadow-xs font-bold'
                   : 'text-stone-600 hover:text-stone-900'
               }`}
             >
-              2 Años (Mensual)
+              <span className="hidden xs:inline">2 Años (Mensual)</span>
+              <span className="xs:hidden">2 Años</span>
             </button>
             <button
               onClick={() => {
@@ -339,7 +340,7 @@ export function MarketPricesSection() {
         <div className="relative pt-2">
           {/* Tooltip flotante o tarjeta de detalle */}
           {hoveredPoint && (
-            <div className="mb-2 p-2.5 rounded-xl bg-stone-900 text-white text-xs flex items-center justify-between border border-stone-700 shadow-md">
+            <div className="mb-2 p-2.5 rounded-xl bg-stone-900 text-white text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border border-stone-700 shadow-md">
               <div>
                 <span className="font-bold text-amber-300">{hoveredPoint.period}</span>
                 {hoveredPoint.seasonTag && (
